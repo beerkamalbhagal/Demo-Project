@@ -237,7 +237,7 @@ import CultureVault from "./CultureVault.astro";
   // Local Storage loaders
   function loadProgress() {
     try {
-      const saved = localStorage.getItem("punjabi_adventure_progress");
+      const saved = localStorage.getItem("my_punjabi_heritage_progress");
       if (saved) {
         state = { ...defaultProgress, ...JSON.parse(saved) };
       } else {
@@ -249,7 +249,7 @@ import CultureVault from "./CultureVault.astro";
   }
 
   function saveProgress() {
-    localStorage.setItem("punjabi_adventure_progress", JSON.stringify(state));
+    localStorage.setItem("my_punjabi_heritage_progress", JSON.stringify(state));
     updateNavbar();
   }
 
@@ -1575,6 +1575,28 @@ import CultureVault from "./CultureVault.astro";
     document.getElementById("lesson-submit-btn")?.addEventListener("click", () => {
       checkAnswer();
     });
+
+    // OPTIONAL: Skip to next question (no back navigation)
+    document.getElementById("lesson-skip-btn")?.addEventListener("click", () => {
+      // Skip is allowed only while the lesson viewport is visible.
+      if (!submitBtnAllowsAdvance()) return;
+
+      const challenge = currentChallenges[currentChallengeIndex];
+      if (challenge) activeMistakes++;
+
+      // Move forward; do not allow going back.
+      currentChallengeIndex++;
+      loadChallenge();
+    });
+
+    function submitBtnAllowsAdvance() {
+      const lessonSubmitBtn = document.getElementById("lesson-submit-btn") as HTMLButtonElement | null;
+      // Allow skip only during an active lesson viewport (not summary)
+      const viewport = document.getElementById("lesson-viewport");
+      if (!viewport || viewport.classList.contains("hidden")) return false;
+      return !!lessonSubmitBtn;
+    }
+
 
     // CLEAR TRACING CANVAS
     document.getElementById("clear-trace-btn")?.addEventListener("click", () => {
