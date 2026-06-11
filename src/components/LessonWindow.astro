@@ -1,0 +1,162 @@
+---
+// src/components/LessonWindow.astro
+---
+<div class="w-full bg-canvas-light text-ink py-12 px-4 md:px-8 border-b border-hairline-light min-h-[500px]" id="lesson-screen-container">
+  <div class="max-w-3xl mx-auto bg-white rounded-md border border-hairline-light shadow-xl overflow-hidden relative">
+    
+    <!-- Top Header: Progress and Mistakes Tracker -->
+    <div class="bg-surface-soft px-6 py-4 flex items-center justify-between border-b border-hairline-light select-none">
+      <div class="flex items-center gap-3 w-2/3">
+        <button id="lesson-exit-btn" class="text-sm font-bold text-mute-light hover:text-primary transition-colors pr-2">
+          ✕ Exit
+        </button>
+        <div class="w-full bg-ash-light h-2.5 rounded-full overflow-hidden">
+          <div id="lesson-progress-fill" class="bg-primary h-full transition-all duration-300" style="width: 0%;"></div>
+        </div>
+        <span id="lesson-progress-text" class="caption-sm text-mute-light font-semibold whitespace-nowrap">Q 1/6</span>
+      </div>
+      
+      <div class="flex items-center gap-4">
+        <!-- Mistakes Indicator -->
+        <div class="text-sm font-bold text-warning flex items-center gap-1">
+          <span>❌</span>
+          <span id="lesson-mistakes-count">0</span> Mistakes
+        </div>
+        <!-- XP Indicator -->
+        <div class="text-sm font-bold text-primary flex items-center gap-1">
+          <span>✨</span>
+          <span id="lesson-xp-gained">0</span> XP
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Question Viewport -->
+    <div class="p-6 md:p-8" id="lesson-viewport">
+      
+      <!-- Question Title -->
+      <h2 id="lesson-question-title" class="heading-xl text-ink font-light leading-snug">
+        What is the sound for the Gurmukhi letter below?
+      </h2>
+
+      <!-- Question Visual Container -->
+      <div class="my-8 flex justify-center" id="lesson-question-body">
+        <!-- Letter Recognition Large Symbol Card -->
+        <div id="body-card-letter" class="hidden w-48 h-48 bg-surface-card rounded-md border border-hairline-light flex flex-col items-center justify-center shadow-sm select-none">
+          <span id="large-letter-char" class="text-7xl font-display font-bold text-primary">ੳ</span>
+          <span id="large-letter-name" class="caption-sm text-mute-light mt-2">Ura</span>
+        </div>
+
+        <!-- Listening Audio Click Card -->
+        <div id="body-card-listening" class="hidden w-full max-w-sm p-6 bg-surface-card rounded-md border border-hairline-light flex flex-col items-center gap-4 text-center shadow-sm">
+          <button id="replay-audio-btn" class="w-20 h-20 rounded-full bg-primary hover:bg-primary-pressed text-white flex items-center justify-center text-3xl shadow-lg cursor-pointer transition-transform active:scale-95">
+            🔊
+          </button>
+          <p class="body-sm text-mute-light">Click the audio button to replay the Gurmukhi pronunciation.</p>
+        </div>
+
+        <!-- Tracing Canvas Pad -->
+        <div id="body-card-tracing" class="hidden flex-col items-center w-full">
+          <div class="relative w-64 h-64 bg-surface-card rounded-md border-2 border-dashed border-ash-light flex items-center justify-center overflow-hidden cursor-crosshair">
+            <!-- Reference Letter Background SVG -->
+            <svg id="tracing-svg" class="absolute inset-0 w-full h-full opacity-35 select-none pointer-events-none" viewBox="0 0 100 100">
+              <path id="tracing-guide-path" d="" class="tracing-path" />
+              <path id="tracing-active-path" d="" class="tracing-guide" />
+            </svg>
+            
+            <!-- Drawing HTML5 Canvas -->
+            <canvas id="tracing-canvas" width="256" height="256" class="absolute inset-0 z-10 w-full h-full"></canvas>
+            
+            <!-- Tracing Guide Markers -->
+            <div id="tracing-markers" class="absolute inset-0 pointer-events-none z-20"></div>
+          </div>
+          <p class="caption-md text-mute-light mt-3 text-center">
+            Click and drag to trace along the guiding dash lines starting from the <span class="text-primary font-bold">Green Dot</span>.
+          </p>
+          <button id="clear-trace-btn" class="mt-2 text-xs font-bold text-primary hover:text-primary-pressed cursor-pointer">
+            Clear Canvas
+          </button>
+        </div>
+      </div>
+
+      <!-- Multiple Choice Options Area -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="lesson-options-container">
+        <!-- Interactive option tiles will be rendered dynamically -->
+      </div>
+      
+      <!-- Speaking Ready Container -->
+      <div id="speaking-container" class="hidden bg-surface-soft p-4 rounded-md border border-hairline-light flex-col items-center gap-2 text-center my-4">
+        <div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xl">🎙️</div>
+        <h4 class="font-bold text-sm">Speaking Evaluation (Architectural Mock)</h4>
+        <p class="caption-md text-mute-light max-w-md">Pronounce the letter into your microphone. Web Speech Recognition API handles transcript comparison in background.</p>
+        <button class="px-4 py-1.5 rounded-full bg-primary text-white font-bold text-xs">Evaluate Speech</button>
+      </div>
+
+      <!-- Action Button Panel -->
+      <div class="border-t border-hairline-light mt-8 pt-6 flex justify-end">
+        <button id="lesson-submit-btn" class="px-8 py-3 rounded-full bg-primary hover:bg-primary-pressed text-white font-bold text-sm tracking-wider shadow-lg transition-colors select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+          CHECK ANSWER
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Summary / Completion Screen Viewport (Initially Hidden) -->
+    <div class="p-8 hidden text-center select-none" id="lesson-summary-screen">
+      <!-- Fireworks Canvas overlay -->
+      <div class="text-7xl mb-4 animate-bounce" id="summary-medal-icon">🥇</div>
+      <h2 id="summary-headline" class="display-md text-ink font-light">Flawless Victory!</h2>
+      <p id="summary-tagline" class="body-sm text-mute-light mt-2">You completed the lesson with zero mistakes.</p>
+
+      <div class="max-w-md mx-auto my-8 bg-surface-card rounded-md border border-hairline-light p-6 shadow-sm space-y-4">
+        <div class="grid grid-cols-3 gap-2 text-center divide-x divide-hairline-light">
+          <div>
+            <span class="text-[10px] uppercase tracking-wider text-mute-light block">Accuracy</span>
+            <span id="summary-accuracy" class="text-lg font-bold text-ink">100%</span>
+          </div>
+          <div>
+            <span class="text-[10px] uppercase tracking-wider text-mute-light block">Mistakes</span>
+            <span id="summary-mistakes" class="text-lg font-bold text-warning">0</span>
+          </div>
+          <div>
+            <span class="text-[10px] uppercase tracking-wider text-mute-light block">XP Earned</span>
+            <span id="summary-xp" class="text-lg font-bold text-primary">+80 XP</span>
+          </div>
+        </div>
+
+        <div class="border-t border-hairline-light pt-4"></div>
+
+        <div class="flex items-center justify-between text-sm px-4">
+          <span class="text-mute-light">Region Cleared:</span>
+          <span id="summary-region-name" class="font-semibold text-ink">Punjab, India</span>
+        </div>
+        <div class="flex items-center justify-between text-sm px-4">
+          <span class="text-mute-light">Coins Awarded:</span>
+          <span class="font-bold text-yellow-500">🪙 <span id="summary-coins">+15</span></span>
+        </div>
+        
+        <!-- Reward Reveal Box (If pendant or trophy is unlocked!) -->
+        <div id="summary-reward-box" class="bg-yellow-400/10 border border-yellow-400/30 p-3 rounded text-left hidden">
+          <span class="text-[9px] uppercase tracking-widest text-yellow-600 font-bold block">✨ New Relic Unlocked!</span>
+          <div class="flex items-center gap-3 mt-1.5">
+            <span id="summary-reward-icon" class="text-2xl">💎</span>
+            <div>
+              <h4 id="summary-reward-title" class="text-xs font-bold text-ink">Punjab Heritage Pendant</h4>
+              <p id="summary-reward-desc" class="text-[10px] text-mute-light">Common pendant tied to map milestones.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Level Up Animation Panel (Appears if user leveled up!) -->
+      <div id="summary-level-panel" class="hidden max-w-md mx-auto mb-8 bg-primary text-white p-4 rounded-md shadow-lg animate-pulse">
+        <h3 class="font-bold text-lg">⚡ LEVEL UP! ⚡</h3>
+        <p class="text-xs text-white/90 mt-1">Congratulations! You have reached level <span id="summary-level-new" class="font-black">2</span>!</p>
+      </div>
+
+      <button id="summary-continue-btn" class="px-10 py-3.5 rounded-full bg-primary hover:bg-primary-pressed text-white font-bold text-sm tracking-widest shadow-xl transition-colors cursor-pointer">
+        RETURN TO MAP
+      </button>
+    </div>
+
+  </div>
+</div>

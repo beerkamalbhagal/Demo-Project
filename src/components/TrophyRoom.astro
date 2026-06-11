@@ -1,0 +1,281 @@
+---
+// src/components/TrophyRoom.astro
+---
+<div class="w-full bg-canvas-dark text-on-dark py-12 px-4 md:px-8 border-b border-hairline-dark select-none" id="trophy-screen-container">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div>
+        <p class="caption-sm text-primary uppercase font-bold tracking-widest">Achievements Museum</p>
+        <h1 class="display-lg text-on-dark mt-1">Gurmukhi Trophy Room</h1>
+        <p class="body-sm text-on-dark-mute mt-2">
+          Your personal hall of victory. Inspect earned trophies in 3D, view your hanging medals rack, and browse rare milestone pendants.
+        </p>
+      </div>
+      
+      <!-- Museum Sub-navigation (Pills) -->
+      <div class="flex bg-surface-dark-card border border-hairline-dark p-1 rounded-full w-fit mx-auto md:mx-0">
+        <button id="museum-tab-trophies" class="museum-tab-btn px-4 py-1.5 rounded-full text-xs font-bold bg-primary text-white">Trophies</button>
+        <button id="museum-tab-medals" class="museum-tab-btn px-4 py-1.5 rounded-full text-xs font-bold text-on-dark-mute hover:text-white transition-colors">Medals</button>
+        <button id="museum-tab-pendants" class="museum-tab-btn px-4 py-1.5 rounded-full text-xs font-bold text-on-dark-mute hover:text-white transition-colors">Pendants</button>
+      </div>
+    </div>
+
+    <!-- VIEW 1: Trophies Shelves (Default) -->
+    <div id="museum-view-trophies" class="space-y-12">
+      
+      <!-- Shelf 1: General Milestones -->
+      <div class="shelf-3d-container">
+        <h3 class="text-xs uppercase tracking-widest text-on-dark-mute font-bold mb-4">Shelf I: Core Milestones</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 bg-surface-dark-card/30 rounded-md border border-hairline-dark relative pb-8">
+          <!-- Letter Master Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="alphabet">
+            <div class="trophy-model text-5xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-alphabet">🔠</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center" id="trophy-label-alphabet">Alphabet Trophy</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-alphabet">Locked</span>
+          </div>
+
+          <!-- Numbers Master Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="numbers">
+            <div class="trophy-model text-5xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-numbers">🔢</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center" id="trophy-label-numbers">Numbers Trophy</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-numbers">Locked</span>
+          </div>
+
+          <!-- Listening Master Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="listening">
+            <div class="trophy-model text-5xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-listening">🎧</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center" id="trophy-label-listening">Listening Trophy</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-listening">Locked</span>
+          </div>
+
+          <!-- Reading Master Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="reading">
+            <div class="trophy-model text-5xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-reading">📚</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center" id="trophy-label-reading">Reading Trophy</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-reading">Locked</span>
+          </div>
+          <!-- 3D Shelf wood bottom -->
+          <div class="absolute bottom-0 left-0 right-0 trophy-shelf-surface"></div>
+        </div>
+      </div>
+
+      <!-- Shelf 2: Regional Adventure Trophies -->
+      <div class="shelf-3d-container">
+        <h3 class="text-xs uppercase tracking-widest text-on-dark-mute font-bold mb-4">Shelf II: Regional Campaigns</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 bg-surface-dark-card/30 rounded-md border border-hairline-dark relative pb-8">
+          
+          <!-- India Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="india">
+            <div class="trophy-model text-5xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-india">🏆</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center">Beginner Trophy</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-india">Locked</span>
+          </div>
+
+          <!-- Pakistan Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="pakistan">
+            <div class="trophy-model text-5xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-pakistan">🏺</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center">Unity Trophy</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-pakistan">Locked</span>
+          </div>
+
+          <!-- Canada Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="canada">
+            <div class="trophy-model text-5xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-canada">🍁</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center">Maple Punjabi</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-canada">Locked</span>
+          </div>
+
+          <!-- UK Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="uk">
+            <div class="trophy-model text-5xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-uk">👑</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center">Royal Trophy</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-uk">Locked</span>
+          </div>
+
+          <div class="absolute bottom-0 left-0 right-0 trophy-shelf-surface"></div>
+        </div>
+      </div>
+
+      <!-- Shelf 3: Advanced Regional Trophies -->
+      <div class="shelf-3d-container">
+        <h3 class="text-xs uppercase tracking-widest text-on-dark-mute font-bold mb-4">Shelf III: Advanced Campaigns</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-6 p-6 bg-surface-dark-card/30 rounded-md border border-hairline-dark relative pb-8">
+          
+          <!-- US Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="us">
+            <div class="trophy-model text-5xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-us">🦅</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center">Pioneer Trophy</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-us">Locked</span>
+          </div>
+
+          <!-- Australia Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="australia">
+            <div class="trophy-model text-5xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-australia">🧭</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center">Explorer Trophy</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-australia">Locked</span>
+          </div>
+
+          <!-- Global Mastery Trophy -->
+          <div class="trophy-slot flex flex-col items-center justify-end h-44 cursor-pointer group" data-trophy-id="global">
+            <div class="trophy-model text-6xl transition-transform group-hover:-translate-y-2 duration-300 filter grayscale brightness-50" id="trophy-art-global">🎓</div>
+            <span class="text-xs font-bold text-on-dark-mute mt-4 text-center">Global Scholar</span>
+            <span class="text-[9px] uppercase tracking-wider text-red-500 font-bold block" id="trophy-status-global">Locked</span>
+          </div>
+
+          <div class="absolute bottom-0 left-0 right-0 trophy-shelf-surface"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: Hanging Medals Wall -->
+    <div id="museum-view-medals" class="hidden">
+      <!-- Hanging Metal Rack Grid -->
+      <div class="w-full bg-surface-dark-card border border-hairline-dark rounded-md p-6 relative">
+        <!-- Hanging chains decor -->
+        <div class="absolute top-0 left-8 w-1 bg-charcoal h-6"></div>
+        <div class="absolute top-0 right-8 w-1 bg-charcoal h-6"></div>
+        
+        <h3 class="text-xs uppercase tracking-widest text-on-dark-mute font-bold mb-6 text-center">Hanging Performance Medals</h3>
+        
+        <div id="medals-empty-state" class="text-center py-12">
+          <span class="text-5xl block mb-2 opacity-50">🏅</span>
+          <p class="body-sm text-on-dark-mute">No lessons completed yet! Clear chapters on the map to earn gold, silver, and bronze medals.</p>
+        </div>
+
+        <!-- Scrollable Rack list -->
+        <div id="medals-rack-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+          <!-- Dynamic medals injected here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: Pendant Gallery -->
+    <div id="museum-view-pendants" class="hidden">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Left hook details pane -->
+        <div class="bg-surface-dark-card border border-hairline-dark p-6 rounded-md flex flex-col justify-between" style="min-height: 300px;">
+          <div>
+            <span class="caption-sm text-primary uppercase font-bold tracking-widest">Relic Hook Rack</span>
+            <h3 class="heading-lg text-on-dark mt-1">Milestone Pendants</h3>
+            <p class="body-sm text-on-dark-mute mt-2">
+              Pendants are extremely rare relics awarded when you clear chapters of map regions. Click any unlocked pendant to inspect details.
+            </p>
+          </div>
+          
+          <div class="bg-surface-dark-elevated border border-hairline-dark p-4 rounded text-xs space-y-2 mt-4" id="pendant-inspector-pane">
+            <span class="text-mute-dark block uppercase tracking-wider text-[9px]">Pendant Description</span>
+            <h4 class="font-bold text-sm text-on-dark" id="inspect-pendant-title">No Pendant Selected</h4>
+            <p class="text-on-dark-mute leading-relaxed" id="inspect-pendant-desc">Select a pendant from the hook gallery on the right to read its lore, properties, and milestone unlock conditions.</p>
+            <span class="inline-block mt-2 px-2 py-0.5 rounded text-[9px] font-black uppercase text-white bg-charcoal" id="inspect-pendant-rarity">LOCKED</span>
+          </div>
+        </div>
+
+        <!-- Right hooks gallery (2 Columns span) -->
+        <div class="md:col-span-2 bg-surface-dark-card border border-hairline-dark p-6 rounded-md relative flex flex-col justify-between">
+          <!-- Hook display rows -->
+          <div class="grid grid-cols-3 md:grid-cols-4 gap-6 text-center py-6">
+            
+            <!-- India Pendant Hook -->
+            <div class="pendant-hook cursor-pointer flex flex-col items-center group" data-pendant-id="india">
+              <div class="w-2.5 h-2.5 bg-mute-dark rounded-full mb-1 shadow-inner" title="Wall Hook"></div>
+              <div class="pendant-relic text-4xl filter grayscale brightness-50 transition-transform group-hover:scale-110 duration-200" id="pendant-art-india">💎</div>
+              <span class="text-[10px] font-semibold text-on-dark-mute mt-2">Punjab Heritage</span>
+            </div>
+
+            <!-- Pakistan Pendant Hook -->
+            <div class="pendant-hook cursor-pointer flex flex-col items-center group" data-pendant-id="pakistan">
+              <div class="w-2.5 h-2.5 bg-mute-dark rounded-full mb-1 shadow-inner" title="Wall Hook"></div>
+              <div class="pendant-relic text-4xl filter grayscale brightness-50 transition-transform group-hover:scale-110 duration-200" id="pendant-art-pakistan">🔱</div>
+              <span class="text-[10px] font-semibold text-on-dark-mute mt-2">Ravi River</span>
+            </div>
+
+            <!-- Canada Pendant Hook -->
+            <div class="pendant-hook cursor-pointer flex flex-col items-center group" data-pendant-id="canada">
+              <div class="w-2.5 h-2.5 bg-mute-dark rounded-full mb-1 shadow-inner" title="Wall Hook"></div>
+              <div class="pendant-relic text-4xl filter grayscale brightness-50 transition-transform group-hover:scale-110 duration-200" id="pendant-art-canada">⭐</div>
+              <span class="text-[10px] font-semibold text-on-dark-mute mt-2">Northern Star</span>
+            </div>
+
+            <!-- UK Pendant Hook -->
+            <div class="pendant-hook cursor-pointer flex flex-col items-center group" data-pendant-id="uk">
+              <div class="w-2.5 h-2.5 bg-mute-dark rounded-full mb-1 shadow-inner" title="Wall Hook"></div>
+              <div class="pendant-relic text-4xl filter grayscale brightness-50 transition-transform group-hover:scale-110 duration-200" id="pendant-art-uk">🗝️</div>
+              <span class="text-[10px] font-semibold text-on-dark-mute mt-2">Clock Tower</span>
+            </div>
+
+            <!-- US Pendant Hook -->
+            <div class="pendant-hook cursor-pointer flex flex-col items-center group" data-pendant-id="us">
+              <div class="w-2.5 h-2.5 bg-mute-dark rounded-full mb-1 shadow-inner" title="Wall Hook"></div>
+              <div class="pendant-relic text-4xl filter grayscale brightness-50 transition-transform group-hover:scale-110 duration-200" id="pendant-art-us">🔔</div>
+              <span class="text-[10px] font-semibold text-on-dark-mute mt-2">Liberty Bell</span>
+            </div>
+
+            <!-- Australia Pendant Hook -->
+            <div class="pendant-hook cursor-pointer flex flex-col items-center group" data-pendant-id="australia">
+              <div class="w-2.5 h-2.5 bg-mute-dark rounded-full mb-1 shadow-inner" title="Wall Hook"></div>
+              <div class="pendant-relic text-4xl filter grayscale brightness-50 transition-transform group-hover:scale-110 duration-200" id="pendant-art-australia">🌌</div>
+              <span class="text-[10px] font-semibold text-on-dark-mute mt-2">Southern Cross</span>
+            </div>
+
+            <!-- Global Pendant Hook -->
+            <div class="pendant-hook cursor-pointer flex flex-col items-center group" data-pendant-id="global">
+              <div class="w-2.5 h-2.5 bg-mute-dark rounded-full mb-1 shadow-inner" title="Wall Hook"></div>
+              <div class="pendant-relic text-5xl filter grayscale brightness-50 transition-transform group-hover:scale-110 duration-200" id="pendant-art-global">🌟</div>
+              <span class="text-[10px] font-semibold text-on-dark-mute mt-2 text-yellow-400">Master Pendant</span>
+            </div>
+
+          </div>
+          
+          <div class="border-t border-hairline-dark pt-4 flex justify-between items-center text-[10px] text-on-dark-mute">
+            <span>Rarity tiers: Common • Rare • Epic • Legendary • Mythic</span>
+            <span id="pendant-unlocked-count" class="font-bold text-primary">0 / 7 Collected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Interactive 3D Trophy Inspection Modal -->
+  <div id="trophy-inspect-modal" class="fixed inset-0 bg-canvas-dark/95 z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="max-w-md w-full bg-surface-dark-card border border-hairline-dark p-6 rounded-md text-center shadow-2xl relative">
+      <button id="inspect-close-btn" class="absolute top-4 right-4 text-mute-dark hover:text-white text-lg">✕</button>
+      
+      <!-- 3D Rotation inspect wrapper -->
+      <div class="w-48 h-48 mx-auto my-6 flex items-center justify-center relative select-none cursor-grab active:cursor-grabbing" id="inspect-3d-model-wrapper">
+        <!-- Large Floating Rotating Trophy inside -->
+        <div id="inspect-3d-object" class="text-8xl transition-transform duration-100 ease-out select-none pointer-events-none filter drop-shadow-[0_10px_20px_rgba(0,112,209,0.5)]">
+          🏆
+        </div>
+      </div>
+      
+      <span class="caption-sm text-primary uppercase tracking-widest font-bold block" id="inspect-trophy-tier">EPIC RECORD</span>
+      <h3 class="display-md text-on-dark mt-1" id="inspect-trophy-title">Beginner Trophy</h3>
+      <p class="body-sm text-on-dark-mute mt-3" id="inspect-trophy-desc">Awarded for clear steps.</p>
+      
+      <div class="border-t border-hairline-dark my-5"></div>
+      
+      <p class="caption-md text-mute-dark italic">
+        💡 Drag cursor left/right on the trophy to spin it in 3D space!
+      </p>
+
+      <button id="inspect-dismiss-btn" class="mt-6 w-full py-2.5 bg-primary hover:bg-primary-pressed rounded-full text-white font-bold text-sm select-none">
+        CLOSE INSPECTION
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .museum-tab-btn {
+    cursor: pointer;
+  }
+  .pendant-hook.active-inspect {
+    border-bottom: 2px solid var(--color-primary);
+  }
+  .trophy-slot:hover .trophy-model {
+    filter: drop-shadow(0 0 15px rgba(255,206,33,0.6));
+  }
+</style>

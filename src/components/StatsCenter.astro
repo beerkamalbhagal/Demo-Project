@@ -1,0 +1,170 @@
+---
+// src/components/StatsCenter.astro
+---
+<div class="w-full bg-canvas-light text-ink py-12 px-4 md:px-8 border-b border-hairline-light" id="stats-screen-container">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8 text-center md:text-left">
+      <p class="caption-sm text-primary uppercase font-bold tracking-widest">Progress Dashboard</p>
+      <h1 class="display-lg text-ink mt-1">Student Statistics Center</h1>
+      <p class="body-sm text-body-light mt-2">
+        Monitor your Gurmukhi reading speed, accuracy statistics, and verify active daily/weekly challenges.
+      </p>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      
+      <!-- Column 1 & 2: Mastery Stats Grid -->
+      <div class="md:col-span-2 space-y-6">
+        <!-- Level Up Card (PlayStation Feature Card Style) -->
+        <div class="bg-surface-card rounded-md p-6 border border-hairline-light shadow-sm flex flex-col md:flex-row items-center gap-6">
+          <div class="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-white text-3xl font-bold shadow-md relative">
+            <span id="stats-level-val">1</span>
+            <div class="absolute -bottom-1 -right-1 bg-yellow-400 text-ink rounded-full px-1.5 py-0.5 text-[9px] font-black uppercase">Level</div>
+          </div>
+          <div class="flex-1 w-full">
+            <div class="flex justify-between items-center mb-2 text-sm">
+              <span class="font-bold text-ink">Experience Points</span>
+              <span class="text-mute-light" id="stats-xp-ratio">0 / 100 XP</span>
+            </div>
+            <div class="w-full bg-ash-light h-3 rounded-full overflow-hidden border border-hairline-light">
+              <div id="stats-xp-fill" class="bg-primary h-full transition-all duration-500" style="width: 0%;"></div>
+            </div>
+            <p class="text-xs text-mute-light mt-2">Earn XP by finishing lessons, maintaining streaks, and clearing challenge criteria.</p>
+          </div>
+        </div>
+
+        <!-- Numerics Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <!-- Card: Accuracy -->
+          <div class="bg-surface-card rounded-md p-4 border border-hairline-light text-center shadow-sm">
+            <span class="text-[10px] uppercase tracking-wider text-mute-light block">Learning Accuracy</span>
+            <span class="text-3xl font-display font-light text-ink mt-1 block" id="stats-accuracy-val">100%</span>
+            <span class="text-[10px] text-green-600 font-semibold block mt-1">▲ Excellent</span>
+          </div>
+
+          <!-- Card: Streak -->
+          <div class="bg-surface-card rounded-md p-4 border border-hairline-light text-center shadow-sm">
+            <span class="text-[10px] uppercase tracking-wider text-mute-light block">Current Streak</span>
+            <span class="text-3xl font-display font-light text-orange-500 mt-1 block">🔥 <span id="stats-streak-val">0</span>d</span>
+            <span class="text-[10px] text-mute-light block mt-1">Record: <span id="stats-longest-streak-val">0</span>d</span>
+          </div>
+
+          <!-- Card: Completed Lessons -->
+          <div class="bg-surface-card rounded-md p-4 border border-hairline-light text-center shadow-sm">
+            <span class="text-[10px] uppercase tracking-wider text-mute-light block">Lessons Cleared</span>
+            <span class="text-3xl font-display font-light text-ink mt-1 block" id="stats-lessons-val">0</span>
+            <span class="text-[10px] text-mute-light block mt-1">Across 7 regions</span>
+          </div>
+
+          <!-- Card: Trophies -->
+          <div class="bg-surface-card rounded-md p-4 border border-hairline-light text-center shadow-sm">
+            <span class="text-[10px] uppercase tracking-wider text-mute-light block">Trophies Earned</span>
+            <span class="text-3xl font-display font-light text-yellow-500 mt-1 block">🏆 <span id="stats-trophies-val">0</span></span>
+            <span class="text-[10px] text-mute-light block mt-1">Shelf items unlocked</span>
+          </div>
+
+          <!-- Card: Medals -->
+          <div class="bg-surface-card rounded-md p-4 border border-hairline-light text-center shadow-sm">
+            <span class="text-[10px] uppercase tracking-wider text-mute-light block">Medals Claimed</span>
+            <span class="text-3xl font-display font-light text-ink mt-1 block">🏅 <span id="stats-medals-val">0</span></span>
+            <span class="text-[10px] text-mute-light block mt-1">Gold/Silver medals</span>
+          </div>
+
+          <!-- Card: Pendants -->
+          <div class="bg-surface-card rounded-md p-4 border border-hairline-light text-center shadow-sm">
+            <span class="text-[10px] uppercase tracking-wider text-mute-light block">Pendants Collected</span>
+            <span class="text-3xl font-display font-light text-blue-500 mt-1 block">💎 <span id="stats-pendants-val">0</span></span>
+            <span class="text-[10px] text-mute-light block mt-1">Rare cultural relics</span>
+          </div>
+        </div>
+
+        <!-- Mastery Dial Section -->
+        <div class="bg-surface-card rounded-md p-6 border border-hairline-light shadow-sm flex flex-col sm:flex-row items-center justify-around gap-6">
+          <div class="relative w-36 h-36 flex items-center justify-center">
+            <!-- SVG Progress Ring -->
+            <svg class="w-full h-full transform -rotate-90">
+              <circle cx="72" cy="72" r="60" stroke="#f3f3f3" stroke-width="12" fill="transparent"></circle>
+              <circle cx="72" cy="72" r="60" stroke="#0070d1" stroke-width="12" fill="transparent" stroke-dasharray="377" stroke-dashoffset="377" id="mastery-circle-fill" class="transition-all duration-1000"></circle>
+            </svg>
+            <div class="absolute text-center select-none">
+              <span id="stats-mastery-val" class="text-2xl font-bold text-ink">0%</span>
+              <span class="text-[9px] uppercase tracking-widest text-mute-light block">Mastered</span>
+            </div>
+          </div>
+          
+          <div class="text-center sm:text-left max-w-sm">
+            <h3 class="heading-lg text-ink">Language Fluency Rating</h3>
+            <p class="body-sm text-body-light mt-2">
+              Fluency is computed based on unique Gurmukhi alphabet letters traced, vocabulary lessons completed, and listening accuracy.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 3: Active Challenges Pane -->
+      <div class="space-y-6">
+        <!-- Daily Challenges Card -->
+        <div class="bg-surface-card rounded-md p-5 border border-hairline-light shadow-sm">
+          <h3 class="text-xs uppercase tracking-widest text-primary font-bold mb-4">Daily Objectives</h3>
+          <ul class="space-y-3.5" id="daily-challenges-list">
+            <!-- Objective 1 -->
+            <li class="flex items-start gap-3">
+              <input type="checkbox" id="daily-ch-1" class="mt-1 w-4 h-4 rounded text-primary focus:ring-primary pointer-events-none" disabled />
+              <label for="daily-ch-1" class="text-xs leading-tight">
+                <span class="font-bold text-ink block">Learn a Letter</span>
+                <span class="text-mute-light text-[10px]" id="daily-ch-1-text">Practice tracing 1 letter (0/1)</span>
+              </label>
+            </li>
+            <!-- Objective 2 -->
+            <li class="flex items-start gap-3">
+              <input type="checkbox" id="daily-ch-2" class="mt-1 w-4 h-4 rounded text-primary focus:ring-primary pointer-events-none" disabled />
+              <label for="daily-ch-2" class="text-xs leading-tight">
+                <span class="font-bold text-ink block">Collect Coins</span>
+                <span class="text-mute-light text-[10px]" id="daily-ch-2-text">Earn 20 coins today (0/20)</span>
+              </label>
+            </li>
+            <!-- Objective 3 -->
+            <li class="flex items-start gap-3">
+              <input type="checkbox" id="daily-ch-3" class="mt-1 w-4 h-4 rounded text-primary focus:ring-primary pointer-events-none" disabled />
+              <label for="daily-ch-3" class="text-xs leading-tight">
+                <span class="font-bold text-ink block">Flawless Study</span>
+                <span class="text-mute-light text-[10px]" id="daily-ch-3-text">Earn a Gold medal in any lesson</span>
+              </label>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Weekly Challenges Card -->
+        <div class="bg-surface-card rounded-md p-5 border border-hairline-light shadow-sm">
+          <h3 class="text-xs uppercase tracking-widest text-commerce font-bold mb-4">Weekly Campaigns</h3>
+          <ul class="space-y-3.5" id="weekly-challenges-list">
+            <!-- Objective 1 -->
+            <li class="flex items-start gap-3">
+              <input type="checkbox" id="weekly-ch-1" class="mt-1 w-4 h-4 rounded text-commerce focus:ring-commerce pointer-events-none" disabled />
+              <label for="weekly-ch-1" class="text-xs leading-tight">
+                <span class="font-bold text-ink block">XP Grind</span>
+                <span class="text-mute-light text-[10px]" id="weekly-ch-1-text">Earn 500 XP points (0/500)</span>
+              </label>
+            </li>
+            <!-- Objective 2 -->
+            <li class="flex items-start gap-3">
+              <input type="checkbox" id="weekly-ch-2" class="mt-1 w-4 h-4 rounded text-commerce focus:ring-commerce pointer-events-none" disabled />
+              <label for="weekly-ch-2" class="text-xs leading-tight">
+                <span class="font-bold text-ink block">Globe Trotter</span>
+                <span class="text-mute-light text-[10px]" id="weekly-ch-2-text">Unlock Pakistan & Canada (0/2)</span>
+              </label>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Custom stats tip -->
+        <div class="bg-primary/5 border border-primary/20 p-4 rounded text-xs text-mute-light">
+          💡 <span class="font-semibold text-primary">Pro Tip:</span> Completing daily objectives immediately grants you <span class="font-bold text-yellow-600">🪙 +10 Coins</span>. Completing weekly campaigns awards a massive <span class="font-bold text-primary">+150 XP</span> boost!
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

@@ -1,0 +1,1695 @@
+---
+// src/components/AdventureApp.astro
+import Navbar from "./Navbar.astro";
+import Footer from "./Footer.astro";
+import WorldMap from "./WorldMap.astro";
+import LessonWindow from "./LessonWindow.astro";
+import TrophyRoom from "./TrophyRoom.astro";
+import StatsCenter from "./StatsCenter.astro";
+import CultureVault from "./CultureVault.astro";
+---
+<div class="flex flex-col min-h-screen bg-canvas-dark text-on-dark selection:bg-primary selection:text-white">
+  <!-- Navbar -->
+  <Navbar />
+
+  <!-- Main Viewports -->
+  <main class="flex-grow">
+    <!-- Map Screen -->
+    <div id="view-MAP" class="screen-view">
+      <WorldMap />
+    </div>
+
+    <!-- Letters & Numbers Grid Screen -->
+    <div id="view-LEARN" class="screen-view hidden bg-canvas-light text-ink py-12 px-4 md:px-8 border-b border-hairline-light">
+      <div class="max-w-6xl mx-auto">
+        <div class="mb-8 text-center md:text-left flex flex-col md:flex-row justify-between items-end gap-4">
+          <div>
+            <p class="caption-sm text-primary uppercase font-bold tracking-widest">Interactive Index</p>
+            <h1 class="display-lg text-ink mt-1">Letters & Numbers Reference</h1>
+            <p class="body-sm text-body-light mt-2">
+              Browse Gurmukhi Punjabi letters and numbers. Click any card to hear standard pronunciations.
+            </p>
+          </div>
+          <!-- Selector Pills -->
+          <div class="flex bg-surface-soft p-1 rounded-full border border-hairline-light select-none">
+            <button id="learn-tab-letters" class="px-4 py-1.5 rounded-full text-xs font-bold bg-primary text-white cursor-pointer">Alphabet (Painti Akhri)</button>
+            <button id="learn-tab-numbers" class="px-4 py-1.5 rounded-full text-xs font-bold text-mute-light hover:text-ink transition-colors cursor-pointer">Punjabi Numbers</button>
+          </div>
+        </div>
+
+        <!-- Alphabet Grid View -->
+        <div id="learn-grid-letters" class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-4">
+          <!-- Letter cards dynamically loaded -->
+        </div>
+
+        <!-- Numbers Grid View -->
+        <div id="learn-grid-numbers" class="hidden grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
+          <!-- Number cards dynamically loaded -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Lesson Session Screen -->
+    <div id="view-LESSON" class="screen-view hidden">
+      <LessonWindow />
+    </div>
+
+    <!-- Trophy Museum Screen -->
+    <div id="view-MUSEUM" class="screen-view hidden">
+      <TrophyRoom />
+    </div>
+
+    <!-- Stats Screen -->
+    <div id="view-STATS" class="screen-view hidden">
+      <StatsCenter />
+    </div>
+
+    <!-- Cultural Vault Screen -->
+    <div id="view-CULTURE" class="screen-view hidden">
+      <CultureVault />
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <Footer />
+</div>
+
+<!-- Scripts section for client-side state engine -->
+<script>
+  import { 
+    GURMUKHI_ALPHABET, 
+    PUNJABI_NUMBERS, 
+    WORLD_REGIONS, 
+    getRegionChallenges 
+  } from "./GurmukhiData";
+  import confetti from "canvas-confetti";
+
+  // State interfaces
+  interface MedalEarned {
+    lessonName: string;
+    mistakes: number;
+    xp: number;
+    accuracy: number;
+    date: string;
+  }
+
+  interface UserProgress {
+    level: number;
+    xp: number;
+    coins: number;
+    streak: number;
+    longestStreak: number;
+    lastStudyDate: string;
+    unlockedRegions: string[];
+    completedLessons: Record<string, number>;
+    earnedMedals: MedalEarned[];
+    earnedTrophies: string[];
+    unlockedPendants: string[];
+    readArticles: number[];
+    mute: boolean;
+    coinsEarnedToday: number;
+    lettersTracedToday: number;
+  }
+
+  // Initial Default State
+  const defaultProgress: UserProgress = {
+    level: 1,
+    xp: 0,
+    coins: 25,
+    streak: 0,
+    longestStreak: 0,
+    lastStudyDate: "",
+    unlockedRegions: ["india"],
+    completedLessons: {},
+    earnedMedals: [],
+    earnedTrophies: [],
+    unlockedPendants: [],
+    readArticles: [],
+    mute: false,
+    coinsEarnedToday: 0,
+    lettersTracedToday: 0
+  };
+
+  let state: UserProgress = { ...defaultProgress };
+
+  // Screen tracking
+  let currentScreen = "MAP";
+  let activeRegionId = "";
+  let activeLessonIndex = 0;
+  
+  // Lesson specific variables
+  let currentChallenges: any[] = [];
+  let currentChallengeIndex = 0;
+  let activeMistakes = 0;
+  let activeXpGained = 0;
+  let selectedOptionText = "";
+  let tracingCompleted = false;
+
+  // Web Audio Context & Sound generator
+  let audioCtx: AudioContext | null = null;
+
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+  }
+
+  function playTone(freq: number, type: OscillatorType, duration: number, delay = 0) {
+    if (state.mute) return;
+    initAudio();
+    if (!audioCtx) return;
+
+    setTimeout(() => {
+      const osc = audioCtx!.createOscillator();
+      const gain = audioCtx!.createGain();
+      
+      osc.type = type;
+      osc.frequency.value = freq;
+      
+      gain.gain.setValueAtTime(0.15, audioCtx!.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx!.currentTime + duration);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx!.destination);
+      
+      osc.start();
+      osc.stop(audioCtx!.currentTime + duration);
+    }, delay * 1000);
+  }
+
+  // Play game sound effects synthetically
+  function playSound(effect: 'correct' | 'error' | 'victory' | 'levelup' | 'click') {
+    if (state.mute) return;
+    switch (effect) {
+      case 'click':
+        playTone(600, 'sine', 0.1);
+        break;
+      case 'correct':
+        playTone(650, 'sine', 0.15);
+        playTone(850, 'sine', 0.25, 0.1);
+        break;
+      case 'error':
+        playTone(220, 'triangle', 0.2);
+        playTone(150, 'triangle', 0.3, 0.15);
+        break;
+      case 'victory':
+        playTone(523.25, 'sine', 0.2); // C5
+        playTone(659.25, 'sine', 0.2, 0.15); // E5
+        playTone(783.99, 'sine', 0.2, 0.3); // G5
+        playTone(1046.50, 'sine', 0.4, 0.45); // C6
+        break;
+      case 'levelup':
+        const scale = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50];
+        scale.forEach((note, i) => {
+          playTone(note, 'sawtooth', 0.15, i * 0.08);
+        });
+        break;
+    }
+  }
+
+  // Pronounce Gurmukhi text using SpeechSynthesis
+  function speakGurmukhi(text: string, phonetics: string) {
+    if (state.mute) return;
+    playSound('click');
+    
+    // Check if SpeechSynthesis is supported
+    if ('speechSynthesis' in window) {
+      // Cancel any ongoing speaking
+      window.speechSynthesis.cancel();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "pa-IN"; // Punjabi voice
+      utterance.rate = 0.85;
+
+      // Fallback behavior if Punjabi voice is not found or fails
+      utterance.onerror = () => {
+        // Fallback to spelling phonetically with English voice
+        const fallbackUtterance = new SpeechSynthesisUtterance(phonetics);
+        fallbackUtterance.lang = "en-US";
+        fallbackUtterance.rate = 0.75;
+        window.speechSynthesis.speak(fallbackUtterance);
+      };
+      
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  // Local Storage loaders
+  function loadProgress() {
+    try {
+      const saved = localStorage.getItem("punjabi_adventure_progress");
+      if (saved) {
+        state = { ...defaultProgress, ...JSON.parse(saved) };
+      } else {
+        state = { ...defaultProgress };
+      }
+    } catch (e) {
+      state = { ...defaultProgress };
+    }
+  }
+
+  function saveProgress() {
+    localStorage.setItem("punjabi_adventure_progress", JSON.stringify(state));
+    updateNavbar();
+  }
+
+  // Screen View router
+  function showScreen(screenId: string) {
+    currentScreen = screenId;
+    document.querySelectorAll(".screen-view").forEach(el => el.classList.add("hidden"));
+    
+    const activeView = document.getElementById(`view-${screenId}`);
+    if (activeView) activeView.classList.remove("hidden");
+
+    // Update nav links highlights
+    document.querySelectorAll(".nav-tab").forEach(tab => {
+      const target = tab.getAttribute("data-nav-target");
+      if (target === screenId) {
+        tab.classList.add("active");
+        tab.classList.remove("text-on-dark-mute");
+      } else {
+        tab.classList.remove("active");
+        tab.classList.add("text-on-dark-mute");
+      }
+    });
+
+    // Sub-view updates based on loaded screen
+    if (screenId === "MAP") {
+      updateMapUI();
+    } else if (screenId === "LEARN") {
+      updateLearnUI();
+    } else if (screenId === "MUSEUM") {
+      updateMuseumUI();
+    } else if (screenId === "STATS") {
+      updateStatsUI();
+    } else if (screenId === "CULTURE") {
+      updateCultureUI();
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Update dynamic values in navigation
+  function updateNavbar() {
+    const streakEl = document.getElementById("nav-streak-val");
+    const coinsEl = document.getElementById("nav-coins-val");
+    const lvlEl = document.getElementById("nav-level-val");
+    const muteEl = document.getElementById("nav-mute-btn");
+    const fillEl = document.getElementById("nav-progress-fill");
+    const textEl = document.getElementById("nav-progress-text");
+    const rankEl = document.getElementById("nav-rank-val");
+
+    if (streakEl) streakEl.textContent = state.streak.toString();
+    if (coinsEl) coinsEl.textContent = state.coins.toString();
+    if (lvlEl) lvlEl.textContent = state.level.toString();
+    if (muteEl) muteEl.textContent = state.mute ? "🔇" : "🔊";
+
+    // Progress percentage
+    const maxExp = 1650; // Total XP threshold for Master Region
+    const progressPercent = Math.min(100, Math.round((state.xp / maxExp) * 100));
+    if (fillEl) fillEl.style.width = `${progressPercent}%`;
+    if (textEl) textEl.textContent = `${progressPercent}%`;
+
+    // Rank descriptor
+    let rank = "Beginner Scholar";
+    if (state.level >= 10) rank = "Grand Punjabi Master";
+    else if (state.level >= 8) rank = "Eldest Scholar";
+    else if (state.level >= 6) rank = "Senior Grammarian";
+    else if (state.level >= 4) rank = "Intermediate Speaker";
+    else if (state.level >= 2) rank = "Literacy Novice";
+    
+    if (rankEl) rankEl.textContent = rank;
+  }
+
+  // Daily Streak checker
+  function verifyStreak() {
+    if (!state.lastStudyDate) return;
+    
+    const today = new Date().toDateString();
+    const lastDate = new Date(state.lastStudyDate);
+    const difference = new Date().getTime() - lastDate.getTime();
+    const diffDays = Math.floor(difference / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      // Streak continues!
+      // (This will be incremented on next lesson completion)
+    } else if (diffDays > 1) {
+      // Streak broken
+      state.streak = 0;
+      saveProgress();
+    }
+  }
+
+  // Map Setup and Node configurations
+  function updateMapUI() {
+    const statsUnlocked = document.getElementById("map-stats-unlocked");
+    const statsProgress = document.getElementById("map-stats-progress");
+    
+    if (statsUnlocked) statsUnlocked.textContent = `${state.unlockedRegions.length} / 7`;
+    
+    // Compute total lessons cleared percent
+    let clearedCount = 0;
+    let totalCount = 0;
+    WORLD_REGIONS.forEach(r => {
+      clearedCount += state.completedLessons[r.id] || 0;
+      totalCount += r.lessonsCount;
+    });
+    const mapCompletion = Math.round((clearedCount / totalCount) * 100);
+    if (statsProgress) statsProgress.textContent = `${mapCompletion}%`;
+
+    // Update node buttons disabled states
+    WORLD_REGIONS.forEach(region => {
+      const node = document.querySelector(`.map-node[data-region="${region.id}"]`);
+      if (node) {
+        const btn = node.querySelector(".node-button") as HTMLButtonElement;
+        const isUnlocked = state.unlockedRegions.includes(region.id);
+        
+        if (btn) {
+          btn.disabled = !isUnlocked;
+          if (isUnlocked) {
+            btn.classList.remove("opacity-60");
+            btn.classList.add("border-primary", "bg-primary");
+            // If active chapter is selected
+            if (activeRegionId === region.id) {
+              btn.classList.add("active-node");
+            } else {
+              btn.classList.remove("active-node");
+            }
+          } else {
+            btn.classList.add("opacity-60");
+            btn.classList.remove("border-primary", "bg-primary", "active-node");
+          }
+        }
+      }
+
+      // Update path strokes
+      // Connection path lines
+      const pathKey = `path-${region.id}`;
+      // In the layout, paths are named by target node, e.g. path-india-pakistan
+    });
+
+    // Differentiate unlocked paths
+    const pathIndiaPak = document.getElementById("path-india-pakistan") as SVGPathElement;
+    const pathPakCan = document.getElementById("path-pakistan-canada") as SVGPathElement;
+    const pathCanUk = document.getElementById("path-canada-uk") as SVGPathElement;
+    const pathUkUs = document.getElementById("path-uk-us") as SVGPathElement;
+    const pathUsAus = document.getElementById("path-us-australia") as SVGPathElement;
+    const pathAusGlob = document.getElementById("path-australia-global") as SVGPathElement;
+
+    if (pathIndiaPak && state.unlockedRegions.includes("pakistan")) {
+      pathIndiaPak.setAttribute("stroke", "#0070d1");
+      pathIndiaPak.removeAttribute("stroke-dasharray");
+    }
+    if (pathPakCan && state.unlockedRegions.includes("canada")) {
+      pathPakCan.setAttribute("stroke", "#0070d1");
+      pathPakCan.removeAttribute("stroke-dasharray");
+    }
+    if (pathCanUk && state.unlockedRegions.includes("uk")) {
+      pathCanUk.setAttribute("stroke", "#0070d1");
+      pathCanUk.removeAttribute("stroke-dasharray");
+    }
+    if (pathUkUs && state.unlockedRegions.includes("us")) {
+      pathUkUs.setAttribute("stroke", "#0070d1");
+      pathUkUs.removeAttribute("stroke-dasharray");
+    }
+    if (pathUsAus && state.unlockedRegions.includes("australia")) {
+      pathUsAus.setAttribute("stroke", "#0070d1");
+      pathUsAus.removeAttribute("stroke-dasharray");
+    }
+    if (pathAusGlob && state.unlockedRegions.includes("global")) {
+      pathAusGlob.setAttribute("stroke", "#0070d1");
+      pathAusGlob.removeAttribute("stroke-dasharray");
+    }
+  }
+
+  // Show detailed tooltip cards for the selected map nodes
+  function showMapNodeDetail(regionId: string) {
+    const region = WORLD_REGIONS.find(r => r.id === regionId);
+    if (!region) return;
+
+    activeRegionId = regionId;
+    updateMapUI(); // trigger active highlighting
+
+    const card = document.getElementById("map-detail-card");
+    const flag = document.getElementById("detail-flag");
+    const title = document.getElementById("detail-title");
+    const subtitle = document.getElementById("detail-subtitle");
+    const focusList = document.getElementById("detail-focus-list");
+    const trophyName = document.getElementById("detail-trophy-name");
+    const pendantName = document.getElementById("detail-pendant-name");
+    const ctaBtn = document.getElementById("detail-cta-btn") as HTMLButtonElement;
+    const unlockedStatus = document.getElementById("detail-unlocked-status");
+
+    if (!card || !flag || !title || !subtitle || !focusList || !trophyName || !pendantName || !ctaBtn || !unlockedStatus) return;
+
+    flag.textContent = region.flag;
+    title.textContent = region.name;
+    subtitle.textContent = region.subtitle;
+    
+    // Clear & load focus
+    focusList.innerHTML = "";
+    region.focus.forEach(item => {
+      const li = document.createElement("li");
+      li.textContent = item;
+      focusList.appendChild(li);
+    });
+
+    trophyName.textContent = `🏆 ${region.rewards.trophy.name}`;
+    pendantName.textContent = `${region.rewards.pendant.icon} ${region.rewards.pendant.name}`;
+
+    const isUnlocked = state.unlockedRegions.includes(regionId);
+    if (isUnlocked) {
+      unlockedStatus.textContent = "UNLOCKED";
+      unlockedStatus.className = "caption-sm bg-primary/20 text-primary border border-primary/40 px-2 py-0.5 rounded-full font-bold";
+      
+      const clearedLessons = state.completedLessons[regionId] || 0;
+      if (clearedLessons >= region.lessonsCount) {
+        ctaBtn.textContent = "REVIEW CHAMPION STUDY";
+        ctaBtn.className = "w-full py-2.5 rounded-full bg-green-600 hover:bg-green-700 text-white font-bold text-sm tracking-wider shadow-lg transition-colors flex items-center justify-center gap-2";
+      } else {
+        ctaBtn.textContent = `START CHAPTER (Lesson ${clearedLessons + 1}/${region.lessonsCount})`;
+        ctaBtn.className = "w-full py-2.5 rounded-full bg-primary hover:bg-primary-pressed text-white font-bold text-sm tracking-wider shadow-lg transition-colors flex items-center justify-center gap-2";
+      }
+      ctaBtn.disabled = false;
+    } else {
+      unlockedStatus.textContent = "LOCKED";
+      unlockedStatus.className = "caption-sm bg-red-500/20 text-red-500 border border-red-500/40 px-2 py-0.5 rounded-full font-bold";
+      ctaBtn.textContent = `LOCKED (Requires ${region.unlockedAtXp} XP)`;
+      ctaBtn.className = "w-full py-2.5 rounded-full bg-charcoal text-on-dark-mute font-bold text-sm tracking-wider cursor-not-allowed";
+      ctaBtn.disabled = true;
+    }
+
+    card.classList.remove("opacity-0", "translate-y-4", "pointer-events-none");
+    playSound('click');
+  }
+
+  // Alphabet & Numbers Tab Reference UI builder
+  let learnSubTab = "letters";
+
+  function updateLearnUI() {
+    const lettersGrid = document.getElementById("learn-grid-letters");
+    const numbersGrid = document.getElementById("learn-grid-numbers");
+    const tabLetters = document.getElementById("learn-tab-letters");
+    const tabNumbers = document.getElementById("learn-tab-numbers");
+
+    if (!lettersGrid || !numbersGrid || !tabLetters || !tabNumbers) return;
+
+    if (learnSubTab === "letters") {
+      lettersGrid.classList.remove("hidden");
+      numbersGrid.classList.add("hidden");
+      tabLetters.className = "px-4 py-1.5 rounded-full text-xs font-bold bg-primary text-white cursor-pointer";
+      tabNumbers.className = "px-4 py-1.5 rounded-full text-xs font-bold text-mute-light hover:text-ink transition-colors cursor-pointer";
+
+      // Render 35 main letters
+      lettersGrid.innerHTML = "";
+      GURMUKHI_ALPHABET.forEach(letter => {
+        const div = document.createElement("div");
+        div.className = "bg-white border border-hairline-light rounded-md p-4 text-center cursor-pointer hover:border-primary active:scale-95 duration-200 shadow-sm flex flex-col items-center select-none";
+        div.innerHTML = `
+          <span class="text-4xl font-display font-bold text-primary">${letter.char}</span>
+          <span class="text-xs font-semibold text-ink mt-2">${letter.name}</span>
+          <span class="text-[10px] text-mute-light">${letter.translit} (${letter.sound})</span>
+          <span class="text-[10px] mt-1 bg-surface-soft px-1.5 py-0.5 rounded text-mute-light font-mono">${letter.exampleGurmukhi} : ${letter.exampleMeaning}</span>
+        `;
+        div.addEventListener("click", () => speakGurmukhi(letter.char, letter.name));
+        lettersGrid.appendChild(div);
+      });
+
+    } else {
+      lettersGrid.classList.add("hidden");
+      numbersGrid.classList.remove("hidden");
+      tabLetters.className = "px-4 py-1.5 rounded-full text-xs font-bold text-mute-light hover:text-ink transition-colors cursor-pointer";
+      tabNumbers.className = "px-4 py-1.5 rounded-full text-xs font-bold bg-primary text-white cursor-pointer";
+
+      // Render Punjabi numbers
+      numbersGrid.innerHTML = "";
+      PUNJABI_NUMBERS.forEach(num => {
+        const div = document.createElement("div");
+        div.className = "bg-white border border-hairline-light rounded-md p-4 text-center cursor-pointer hover:border-primary active:scale-95 duration-200 shadow-sm flex flex-col items-center select-none";
+        div.innerHTML = `
+          <div class="flex items-baseline gap-2">
+            <span class="text-3xl font-display font-bold text-primary">${num.char}</span>
+            <span class="text-sm font-semibold text-mute-light">(${num.value})</span>
+          </div>
+          <span class="text-xs font-bold text-ink mt-2">${num.word}</span>
+          <span class="text-[10px] text-mute-light font-mono">${num.translit}</span>
+          <span class="text-[10px] text-mute-light italic mt-0.5">${num.meaning}</span>
+        `;
+        div.addEventListener("click", () => speakGurmukhi(num.word, num.translit));
+        numbersGrid.appendChild(div);
+      });
+    }
+  }
+
+  // Museum UI builder (Trophies, Medals, Pendants)
+  let museumSubTab = "trophies";
+
+  function updateMuseumUI() {
+    const viewTrophies = document.getElementById("museum-view-trophies");
+    const viewMedals = document.getElementById("museum-view-medals");
+    const viewPendants = document.getElementById("museum-view-pendants");
+
+    const tabTrophies = document.getElementById("museum-tab-trophies");
+    const tabMedals = document.getElementById("museum-tab-medals");
+    const tabPendants = document.getElementById("museum-tab-pendants");
+
+    if (!viewTrophies || !viewMedals || !viewPendants || !tabTrophies || !tabMedals || !tabPendants) return;
+
+    viewTrophies.classList.add("hidden");
+    viewMedals.classList.add("hidden");
+    viewPendants.classList.add("hidden");
+    
+    tabTrophies.className = "museum-tab-btn px-4 py-1.5 rounded-full text-xs font-bold text-on-dark-mute hover:text-white transition-colors cursor-pointer";
+    tabMedals.className = "museum-tab-btn px-4 py-1.5 rounded-full text-xs font-bold text-on-dark-mute hover:text-white transition-colors cursor-pointer";
+    tabPendants.className = "museum-tab-btn px-4 py-1.5 rounded-full text-xs font-bold text-on-dark-mute hover:text-white transition-colors cursor-pointer";
+
+    if (museumSubTab === "trophies") {
+      viewTrophies.classList.remove("hidden");
+      tabTrophies.className = "museum-tab-btn px-4 py-1.5 rounded-full text-xs font-bold bg-primary text-white cursor-pointer";
+      
+      // Update trophies display silhouettes based on user unlock state
+      const coreTrophies = ["alphabet", "numbers", "listening", "reading", "india", "pakistan", "canada", "uk", "us", "australia", "global"];
+      
+      coreTrophies.forEach(tId => {
+        const isUnlocked = state.earnedTrophies.includes(tId);
+        const artEl = document.getElementById(`trophy-art-${tId}`);
+        const statusEl = document.getElementById(`trophy-status-${tId}`);
+        
+        if (artEl) {
+          if (isUnlocked) {
+            artEl.classList.remove("grayscale", "brightness-50");
+            artEl.classList.add("animate-bounce-slow");
+          } else {
+            artEl.classList.add("grayscale", "brightness-50");
+          }
+        }
+        if (statusEl) {
+          if (isUnlocked) {
+            statusEl.textContent = "UNLOCKED";
+            statusEl.className = "text-[9px] uppercase tracking-wider text-green-400 font-bold block mt-1";
+          } else {
+            statusEl.textContent = "LOCKED";
+            statusEl.className = "text-[9px] uppercase tracking-wider text-red-500 font-bold block mt-1";
+          }
+        }
+      });
+
+    } else if (museumSubTab === "medals") {
+      viewMedals.classList.remove("hidden");
+      tabMedals.className = "museum-tab-btn px-4 py-1.5 rounded-full text-xs font-bold bg-primary text-white cursor-pointer";
+
+      // Render hanging medals rack
+      const emptyState = document.getElementById("medals-empty-state");
+      const listEl = document.getElementById("medals-rack-container");
+
+      if (!emptyState || !listEl) return;
+
+      if (state.earnedMedals.length === 0) {
+        emptyState.classList.remove("hidden");
+        listEl.classList.add("hidden");
+      } else {
+        emptyState.classList.add("hidden");
+        listEl.classList.remove("hidden");
+        listEl.innerHTML = "";
+
+        state.earnedMedals.forEach(medal => {
+          const card = document.createElement("div");
+          card.className = "bg-surface-dark-card border border-hairline-dark rounded-md p-4 flex items-center justify-between shadow-sm relative";
+          
+          let medalEmoji = "🥉";
+          if (medal.mistakes === 0) medalEmoji = "🥇";
+          else if (medal.mistakes === 1) medalEmoji = "🥈";
+          else if (medal.mistakes === 2) medalEmoji = "🥉";
+          else if (medal.mistakes === 3) medalEmoji = "🥉";
+          else medalEmoji = "🏅";
+
+          card.innerHTML = `
+            <div class="flex items-center gap-4">
+              <span class="text-4xl">${medalEmoji}</span>
+              <div>
+                <h4 class="font-bold text-sm text-on-dark">${medal.lessonName}</h4>
+                <p class="caption-md text-on-dark-mute mt-0.5">Accuracy: ${medal.accuracy}% • ${medal.mistakes} mistakes</p>
+                <span class="text-[9px] text-mute-dark block mt-1">Cleared on ${new Date(medal.date).toLocaleDateString()}</span>
+              </div>
+            </div>
+            <div class="text-right text-xs font-bold text-primary">
+              +${medal.xp} XP
+            </div>
+          `;
+          listEl.appendChild(card);
+        });
+      }
+
+    } else {
+      viewPendants.classList.remove("hidden");
+      tabPendants.className = "museum-tab-btn px-4 py-1.5 rounded-full text-xs font-bold bg-primary text-white cursor-pointer";
+
+      // Update pendants silhouettes
+      WORLD_REGIONS.forEach(region => {
+        const relic = document.getElementById(`pendant-art-${region.id}`);
+        const isUnlocked = state.unlockedPendants.includes(region.id);
+        if (relic) {
+          if (isUnlocked) {
+            relic.classList.remove("grayscale", "brightness-50");
+          } else {
+            relic.classList.add("grayscale", "brightness-50");
+          }
+        }
+      });
+
+      // Update count
+      const countEl = document.getElementById("pendant-unlocked-count");
+      if (countEl) countEl.textContent = `${state.unlockedPendants.length} / 7 Collected`;
+    }
+  }
+
+  // 3D Trophy Inspection Modal drag-rotate simulation logic
+  let activeInspectTrophyId = "";
+  let isDraggingTrophy = false;
+  let startX = 0;
+  let currentRotation = 0;
+
+  function showTrophyInspection(trophyId: string) {
+    // Only inspect if trophy is unlocked!
+    if (!state.earnedTrophies.includes(trophyId)) {
+      playSound('error');
+      return;
+    }
+
+    const modal = document.getElementById("trophy-inspect-modal");
+    const obj = document.getElementById("inspect-3d-object");
+    const tier = document.getElementById("inspect-trophy-tier");
+    const title = document.getElementById("inspect-trophy-title");
+    const desc = document.getElementById("inspect-trophy-desc");
+
+    if (!modal || !obj || !tier || !title || !desc) return;
+
+    activeInspectTrophyId = trophyId;
+    currentRotation = 0;
+    obj.style.transform = "rotateY(0deg)";
+
+    // Set content details based on id
+    if (trophyId === "alphabet") {
+      obj.textContent = "🔠";
+      tier.textContent = "CORE RECORD";
+      title.textContent = "Gurmukhi Alphabet Master";
+      desc.textContent = "Standard trophy awarded for mastering letter recognition and pronunciation across all 35 letters of the Painti Akhri alphabet.";
+    } else if (trophyId === "numbers") {
+      obj.textContent = "🔢";
+      tier.textContent = "CORE RECORD";
+      title.textContent = "Numeric Master Trophy";
+      desc.textContent = "Awarded for passing speed and matching challenges for numbers 0 to 1000 in Gurmukhi spelling and numeric scripts.";
+    } else if (trophyId === "listening") {
+      obj.textContent = "🎧";
+      tier.textContent = "CORE RECORD";
+      title.textContent = "Acoustic Listening Trophy";
+      desc.textContent = "Awarded for achieving 100% accuracy in native listening dictations and voice matching exercises.";
+    } else if (trophyId === "reading") {
+      obj.textContent = "📚";
+      tier.textContent = "CORE RECORD";
+      title.textContent = "Fluency Reader Trophy";
+      desc.textContent = "Standard trophy for completing multi-sentence reading comprehension paragraphs in UK and Canada diaspora modules.";
+    } else {
+      // Regional ones
+      const region = WORLD_REGIONS.find(r => r.id === trophyId);
+      if (region) {
+        obj.textContent = region.rewards.trophy.icon;
+        tier.textContent = `CAMPAIGN REWARD - ${region.rewards.pendant.rarity.toUpperCase()}`;
+        title.textContent = region.rewards.trophy.name;
+        desc.textContent = region.rewards.trophy.desc;
+      }
+    }
+
+    modal.classList.remove("opacity-0", "pointer-events-none");
+    playSound('victory');
+  }
+
+  // Pendant details inspector panel updates on click
+  function inspectPendant(regionId: string) {
+    const region = WORLD_REGIONS.find(r => r.id === regionId);
+    if (!region) return;
+
+    const isUnlocked = state.unlockedPendants.includes(regionId);
+    const title = document.getElementById("inspect-pendant-title");
+    const desc = document.getElementById("inspect-pendant-desc");
+    const rarity = document.getElementById("inspect-pendant-rarity");
+
+    if (!title || !desc || !rarity) return;
+
+    if (isUnlocked) {
+      title.textContent = `${region.rewards.pendant.icon} ${region.rewards.pendant.name}`;
+      desc.textContent = region.rewards.pendant.desc;
+      
+      const rarityColors: Record<string, string> = {
+        Common: "bg-gray-500 text-white",
+        Rare: "bg-blue-600 text-white animate-pulse",
+        Epic: "bg-purple-600 text-white animate-pulse",
+        Legendary: "bg-yellow-500 text-ink animate-pulse font-bold",
+        Mythic: "bg-red-600 text-white animate-bounce font-black"
+      };
+
+      rarity.className = `inline-block mt-2 px-2 py-0.5 rounded text-[9px] font-black uppercase ${rarityColors[region.rewards.pendant.rarity] || "bg-charcoal"}`;
+      rarity.textContent = region.rewards.pendant.rarity;
+      playSound('click');
+    } else {
+      title.textContent = "Locked Pendant Hook";
+      desc.textContent = `Unlock this hook by completing all lessons in ${region.name} and claiming the pendant relic. Requires clearing Lesson ${region.lessonsCount}/${region.lessonsCount}.`;
+      rarity.className = "inline-block mt-2 px-2 py-0.5 rounded text-[9px] font-black uppercase bg-charcoal text-on-dark-mute";
+      rarity.textContent = "LOCKED";
+      playSound('error');
+    }
+  }
+
+  // Stats UI update dial percentages
+  function updateStatsUI() {
+    const totalXpEl = document.getElementById("stats-xp-ratio");
+    const xpFillEl = document.getElementById("stats-xp-fill");
+    const levelEl = document.getElementById("stats-level-val");
+    const accuracyEl = document.getElementById("stats-accuracy-val");
+    const streakEl = document.getElementById("stats-streak-val");
+    const longStreakEl = document.getElementById("stats-longest-streak-val");
+    const lessonsEl = document.getElementById("stats-lessons-val");
+    const trophiesEl = document.getElementById("stats-trophies-val");
+    const medalsEl = document.getElementById("stats-medals-val");
+    const pendantsEl = document.getElementById("stats-pendants-val");
+    
+    const dialVal = document.getElementById("stats-mastery-val");
+    const dialRing = document.getElementById("mastery-circle-fill");
+
+    if (!totalXpEl || !xpFillEl || !levelEl || !accuracyEl || !streakEl || !longStreakEl || !lessonsEl || !trophiesEl || !medalsEl || !pendantsEl) return;
+
+    levelEl.textContent = state.level.toString();
+    
+    // Level XP math (levels are 100 XP increments)
+    const levelBase = (state.level - 1) * 150;
+    const currentLvlXp = state.xp - levelBase;
+    const nextLvlThreshold = 150;
+    const xpPercent = Math.min(100, Math.round((currentLvlXp / nextLvlThreshold) * 100));
+
+    totalXpEl.textContent = `${currentLvlXp} / ${nextLvlThreshold} XP (Total: ${state.xp} XP)`;
+    xpFillEl.style.width = `${xpPercent}%`;
+
+    // Accuracy calculations
+    let avgAccuracy = 100;
+    if (state.earnedMedals.length > 0) {
+      const sum = state.earnedMedals.reduce((acc, m) => acc + m.accuracy, 0);
+      avgAccuracy = Math.round(sum / state.earnedMedals.length);
+    }
+    accuracyEl.textContent = `${avgAccuracy}%`;
+
+    streakEl.textContent = state.streak.toString();
+    longStreakEl.textContent = state.longestStreak.toString();
+    
+    // Count lessons cleared
+    let lessonsCleared = 0;
+    Object.keys(state.completedLessons).forEach(k => {
+      lessonsCleared += state.completedLessons[k];
+    });
+    lessonsEl.textContent = lessonsCleared.toString();
+
+    trophiesEl.textContent = state.earnedTrophies.length.toString();
+    medalsEl.textContent = state.earnedMedals.length.toString();
+    pendantsEl.textContent = state.unlockedPendants.length.toString();
+
+    // Mastery Dial
+    const maxLetters = GURMUKHI_ALPHABET.length;
+    const distinctLessonsTraced = state.lettersTracedToday || 0; 
+    const masteryPercent = Math.min(100, Math.round((lessonsCleared / 25) * 100)); // 25 total lessons in campaign
+    
+    if (dialVal) dialVal.textContent = `${masteryPercent}%`;
+    if (dialRing) {
+      // Stroke dashoffset: circumference of r=60 is 377
+      const offset = 377 - (377 * masteryPercent) / 100;
+      dialRing.setAttribute("stroke-dashoffset", offset.toString());
+    }
+
+    // Update Challenges list checkboxes & labels
+    const ch1 = document.getElementById("daily-ch-1") as HTMLInputElement;
+    const ch1Txt = document.getElementById("daily-ch-1-text");
+    const ch2 = document.getElementById("daily-ch-2") as HTMLInputElement;
+    const ch2Txt = document.getElementById("daily-ch-2-text");
+    const ch3 = document.getElementById("daily-ch-3") as HTMLInputElement;
+    const ch3Txt = document.getElementById("daily-ch-3-text");
+
+    const wch1 = document.getElementById("weekly-ch-1") as HTMLInputElement;
+    const wch1Txt = document.getElementById("weekly-ch-1-text");
+    const wch2 = document.getElementById("weekly-ch-2") as HTMLInputElement;
+    const wch2Txt = document.getElementById("weekly-ch-2-text");
+
+    // Daily 1: Practice letter
+    const lettersTraced = state.lettersTracedToday;
+    if (ch1) ch1.checked = lettersTraced >= 1;
+    if (ch1Txt) ch1Txt.textContent = `Practice tracing 1 letter (${lettersTraced}/1)`;
+
+    // Daily 2: Earn coins today
+    const coinsEarned = state.coinsEarnedToday;
+    if (ch2) ch2.checked = coinsEarned >= 20;
+    if (ch2Txt) ch2Txt.textContent = `Earn 20 coins today (${coinsEarned}/20)`;
+
+    // Daily 3: Flawless Study
+    const goldEarned = state.earnedMedals.some(m => m.mistakes === 0);
+    if (ch3) ch3.checked = goldEarned;
+
+    // Weekly 1: Earn 500 XP
+    if (wch1) wch1.checked = state.xp >= 500;
+    if (wch1Txt) wch1Txt.textContent = `Earn 500 XP points (${state.xp}/500)`;
+
+    // Weekly 2: Globe trotter
+    const unlockedCount = state.unlockedRegions.length;
+    if (wch2) wch2.checked = unlockedCount >= 3;
+    if (wch2Txt) wch2Txt.textContent = `Unlock Pakistan & Canada (${Math.min(2, Math.max(0, unlockedCount - 1))}/2)`;
+  }
+
+  // Culture panel details reader
+  const cultureArticles = [
+    {
+      emoji: "🪶",
+      title: "Origins of Gurmukhi",
+      body: `
+        <p>The Gurmukhi script was standardized and popularized in the 16th century by Guru Angad Dev Ji, the second Guru of the Sikhs. Standardizing the script allowed literature, religion, and records to be cataloged in a language spoken directly by the common people of Punjab, moving away from complex Sanskrit scripts of the era.</p>
+        <p>Gurmukhi translates literally to <strong>"from the mouth of the Guru"</strong>. While it developed from ancient Brahmi scripts (specifically the Landa branch), Gurmukhi incorporates specific modifications that fit the precise phonetic consonants and vowel patterns of the spoken Punjabi language.</p>
+        <p>Gurmukhi contains 35 primary letters, which are divided into rows of five. This arrangement forms the basis of early Punjabi literacy standard campaigns still utilized today.</p>
+      `
+    },
+    {
+      emoji: "🌊",
+      title: "The Land of Five Rivers",
+      body: `
+        <p>The word <strong>Punjab</strong> finds its root etymology in the Persian words <em>"Panj"</em> (meaning Five) and <em>"Ab"</em> (meaning Water). Historically, it refers to the fertile agricultural basin watered by the five major eastern tributaries of the Indus River:</p>
+        <ul>
+          <li><strong>Jhelum River</strong>: The westernmost, famous for Alexander the Great's historic battle of the Hydaspes.</li>
+          <li><strong>Chenab River</strong>: Renowned in romantic legends like Sohni Mahiwal.</li>
+          <li><strong>Ravi River</strong>: Flows past the cultural capital Lahore and standard border zones.</li>
+          <li><strong>Beas River</strong>: Flows entirely within modern-day Indian Punjab.</li>
+          <li><strong>Sutlej River</strong>: The longest of the five rivers, hosting major hydroelectric canal systems.</li>
+        </ul>
+        <p>This alluvial river soil created one of the richest agricultural breadbaskets in the world, cultivating major fields of wheat, basmati rice, mustard crops, and sugar cane.</p>
+      `
+    },
+    {
+      emoji: "🥁",
+      title: "Bhangra & Folk Beat",
+      body: `
+        <p><strong>Bhangra</strong> is the premier folk dance and music genre of Punjab. Traditionally, it was performed during <strong>Vaisakhi</strong>, the harvest festival, as farmers celebrated their successful wheat crops. Dancers dressed in vibrantly colored lungis, kurtas, and turbans jump and twist to the pounding syncopated beat of the <strong>Dhol</strong> (a large double-sided barrel drum).</p>
+        <p>As the Punjabi diaspora migrated across Canada, the UK, and the USA, Bhangra beats merged with hip-hop, reggae, and electronic dance genres. This created a global club music phenomenon championed by artists in Southall, Surrey, and Birmingham.</p>
+        <p>Other traditional folk styles include <strong>Gidha</strong> (performed by women with rhythmic clapping and singing of couplets called Bolis) and <strong>Jhumar</strong> (a graceful rotational circular dance).</p>
+      `
+    },
+    {
+      emoji: "🍲",
+      title: "The Punjabi Kitchen",
+      body: `
+        <p>Punjabi cuisine is characterized by its rich, robust flavors and generous use of butter (makhan), ghee, and fresh cream. The heart of home dining is the <strong>Tandoor</strong>, a cylindrical clay oven used to bake soft flatbreads (Naan, Tandoori Roti) and cook fire-seared clay grills.</p>
+        <p>Iconic dishes include:</p>
+        <ul>
+          <li><strong>Sarson ka Saag & Makki di Roti</strong>: Creamy cooked mustard greens served with yellow maize corn flatbreads. The quintessential winter harvest dish.</li>
+          <li><strong>Dal Makhani</strong>: Slow-cooked black lentils simmered overnight with butter and spices.</li>
+          <li><strong>Butter Chicken (Murgh Makhani)</strong>: Chicken tikka bits tossed in a rich, sweet tomato-cream gravy.</li>
+          <li><strong>Lassi</strong>: A thick yogurt drink served sweet or salted in tall brass glasses, often topped with a thick layer of clotted cream.</li>
+        </ul>
+      `
+    },
+    {
+      emoji: "✈️",
+      title: "Global Diaspora Journeys",
+      body: `
+        <p>Punjabis have migrated extensively across the globe, forming some of the most dynamic, closely-knit, and politically active immigrant communities in the Western world.</p>
+        <p>Major hubs include:</p>
+        <ul>
+          <li><strong>Canada (Surrey & Brampton)</strong>: Surrey, BC and Brampton, ON house massive Punjabi-speaking populations. Punjabi is the third most spoken language in the Canadian Parliament!</li>
+          <li><strong>United Kingdom (Southall & West Midlands)</strong>: Southall in West London, known as "Little Punjab", was the epicentre of early migration in the 1950s, giving birth to legendary Bhangra bands and cultural sites.</li>
+          <li><strong>USA (Yuba City & California)</strong>: In the early 20th century, Punjabi agricultural pioneers settled in California's Central Valley. Yuba City remains a major agricultural hub with annual Sikh parades that attract over 100,000 visitors.</li>
+          <li><strong>Australia</strong>: Woolgoolga, NSW is home to early descendants of sugarcane farmers, establishing the first purpose-built Sikh temple in Australia.</li>
+        </ul>
+      `
+    }
+  ];
+
+  let activeArticleId = 0;
+
+  function updateCultureUI() {
+    const readCount = document.getElementById("culture-read-count");
+    if (readCount) {
+      readCount.textContent = `${state.readArticles.length} / 5`;
+    }
+
+    // Add visual indicator to cards that are read
+    document.querySelectorAll("[data-article-id]").forEach(card => {
+      const aId = parseInt(card.getAttribute("data-article-id") || "0");
+      const btn = card.querySelector(".claim-culture-btn");
+      
+      if (state.readArticles.includes(aId)) {
+        card.classList.remove("border-hairline-dark");
+        card.classList.add("border-green-600/50");
+        if (btn) {
+          btn.textContent = "Re-read Log";
+          btn.className = "px-3 py-1 bg-green-600/20 text-green-400 border border-green-600/40 rounded-full font-bold text-[10px] claim-culture-btn";
+        }
+      }
+    });
+  }
+
+  function readArticle(articleId: number) {
+    const article = cultureArticles[articleId];
+    if (!article) return;
+
+    activeArticleId = articleId;
+    const modal = document.getElementById("culture-article-modal");
+    const emoji = document.getElementById("modal-article-emoji");
+    const title = document.getElementById("modal-article-title");
+    const body = document.getElementById("modal-article-body");
+    const claimBtn = document.getElementById("modal-article-claim-btn") as HTMLButtonElement;
+    const xpTag = document.getElementById("modal-article-xp-tag");
+
+    if (!modal || !emoji || !title || !body || !claimBtn || !xpTag) return;
+
+    emoji.textContent = article.emoji;
+    title.textContent = article.title;
+    body.innerHTML = article.body;
+
+    const isRead = state.readArticles.includes(articleId);
+    if (isRead) {
+      claimBtn.textContent = "CLOSE JOURNAL";
+      xpTag.textContent = "✓ Journal Completed (+10 XP claimed)";
+    } else {
+      claimBtn.textContent = "MARK AS READ & CLAIM XP";
+      xpTag.textContent = "🎁 Earns +10 XP points";
+    }
+
+    modal.classList.remove("opacity-0", "pointer-events-none");
+    playSound('click');
+  }
+
+  function claimArticleXp() {
+    const modal = document.getElementById("culture-article-modal");
+    if (!modal) return;
+
+    if (!state.readArticles.includes(activeArticleId)) {
+      state.readArticles.push(activeArticleId);
+      // Award XP
+      awardXp(15); // +15 XP for reading culture lessons!
+      state.coins += 5; // +5 coins
+      playSound('victory');
+    } else {
+      playSound('click');
+    }
+
+    modal.classList.add("opacity-0", "pointer-events-none");
+    saveProgress();
+    updateCultureUI();
+  }
+
+  // XP progression system & Level up checks
+  function awardXp(amount: number) {
+    state.xp += amount;
+    
+    // Level math: 150 XP per level
+    const newLvl = Math.floor(state.xp / 150) + 1;
+    if (newLvl > state.level) {
+      // Level Up!
+      state.level = newLvl;
+      playSound('levelup');
+      
+      // Award Level Up bonus coins!
+      state.coins += 50; 
+      
+      // Trigger temporary overlay alert or display in session summary
+      const lvlPanel = document.getElementById("summary-level-panel");
+      const lvlNew = document.getElementById("summary-level-new");
+      if (lvlPanel && lvlNew) {
+        lvlNew.textContent = newLvl.toString();
+        lvlPanel.classList.remove("hidden");
+      }
+    }
+  }
+
+  // Active Lesson study cycle execution
+  function startLesson(regionId: string, lessonIdx: number) {
+    activeRegionId = regionId;
+    activeLessonIndex = lessonIdx;
+
+    currentChallenges = getRegionChallenges(regionId, lessonIdx);
+    currentChallengeIndex = 0;
+    activeMistakes = 0;
+    activeXpGained = 0;
+
+    // Reset components & viewports
+    document.getElementById("lesson-summary-screen")?.classList.add("hidden");
+    document.getElementById("lesson-viewport")?.classList.remove("hidden");
+    
+    showScreen("LESSON");
+    loadChallenge();
+  }
+
+  function loadChallenge() {
+    const challenge = currentChallenges[currentChallengeIndex];
+    if (!challenge) {
+      finishLesson();
+      return;
+    }
+
+    // Update headers
+    const progressFill = document.getElementById("lesson-progress-fill");
+    const progressText = document.getElementById("lesson-progress-text");
+    const mistakesCount = document.getElementById("lesson-mistakes-count");
+    const xpGained = document.getElementById("lesson-xp-gained");
+    const title = document.getElementById("lesson-question-title");
+    const submitBtn = document.getElementById("lesson-submit-btn") as HTMLButtonElement;
+
+    if (progressFill) progressFill.style.width = `${((currentChallengeIndex) / currentChallenges.length) * 100}%`;
+    if (progressText) progressText.textContent = `Q ${currentChallengeIndex + 1}/${currentChallenges.length}`;
+    if (mistakesCount) mistakesCount.textContent = activeMistakes.toString();
+    if (xpGained) xpGained.textContent = activeXpGained.toString();
+    if (title) title.textContent = challenge.question;
+    
+    if (submitBtn) {
+      submitBtn.textContent = "CHECK ANSWER";
+      submitBtn.disabled = true;
+    }
+
+    // Reset tracing Completeness
+    tracingCompleted = false;
+
+    // Hide all question bodies
+    document.getElementById("body-card-letter")?.classList.add("hidden");
+    document.getElementById("body-card-listening")?.classList.add("hidden");
+    document.getElementById("body-card-tracing")?.classList.add("hidden");
+    document.getElementById("speaking-container")?.classList.add("hidden");
+
+    // Populate question body based on challenge type
+    if (challenge.type === 'letter-recognition' || challenge.type === 'vocabulary') {
+      const letter = GURMUKHI_ALPHABET.find(l => challenge.question.includes(`'${l.char}'`));
+      if (letter) {
+        document.getElementById("body-card-letter")?.classList.remove("hidden");
+        const charEl = document.getElementById("large-letter-char");
+        const nameEl = document.getElementById("large-letter-name");
+        if (charEl) charEl.textContent = letter.char;
+        if (nameEl) nameEl.textContent = letter.name;
+      }
+    } else if (challenge.type === 'listening') {
+      document.getElementById("body-card-listening")?.classList.remove("hidden");
+      // Setup replay button listener
+      const replayBtn = document.getElementById("replay-audio-btn");
+      if (replayBtn) {
+        replayBtn.onclick = () => {
+          speakGurmukhi(challenge.audioPrompt === 'Ik' || challenge.audioPrompt === 'Do' ? 'ਇੱਕ' : challenge.answer, challenge.audioPrompt || "");
+        };
+        // Play once initially
+        speakGurmukhi(challenge.answer, challenge.audioPrompt || "");
+      }
+    } else if (challenge.type === 'writing' && challenge.targetLetter) {
+      document.getElementById("body-card-tracing")?.classList.remove("hidden");
+      initTracingCanvas(challenge.targetLetter);
+    }
+
+    // Populate Multiple Choice Option Buttons
+    const optionsContainer = document.getElementById("lesson-options-container");
+    if (optionsContainer) {
+      optionsContainer.innerHTML = "";
+      
+      if (challenge.options) {
+        optionsContainer.classList.remove("hidden");
+        challenge.options.forEach((opt: string) => {
+          const btn = document.createElement("button");
+          btn.className = "w-full p-4 bg-surface-soft hover:bg-ash-light border border-hairline-light rounded-md font-bold text-sm tracking-wide text-ink text-center cursor-pointer transition-all active:scale-[0.98]";
+          btn.textContent = opt;
+          
+          btn.addEventListener("click", () => {
+            // Highlight selected
+            document.querySelectorAll("#lesson-options-container button").forEach(b => {
+              b.className = "w-full p-4 bg-surface-soft hover:bg-ash-light border border-hairline-light rounded-md font-bold text-sm tracking-wide text-ink text-center cursor-pointer transition-all active:scale-[0.98]";
+            });
+            btn.className = "w-full p-4 bg-primary text-white border-2 border-primary-pressed rounded-md font-bold text-sm tracking-wide text-center cursor-pointer transition-all shadow-md";
+            
+            selectedOptionText = opt;
+            if (submitBtn) submitBtn.disabled = false;
+            playSound('click');
+          });
+          
+          optionsContainer.appendChild(btn);
+        });
+      } else {
+        // Tracing doesn't need multiple choices
+        optionsContainer.classList.add("hidden");
+      }
+    }
+  }
+
+  // Drawing Canvas Tracing Logic
+  let canvas: HTMLCanvasElement | null = null;
+  let ctx: CanvasRenderingContext2D | null = null;
+  let isDrawing = false;
+  let pathPoints: any[] = [];
+  let completedStrokePoints: number[] = []; // tracks matching points indexes in reference coordinates
+
+  function initTracingCanvas(letter: any) {
+    canvas = document.getElementById("tracing-canvas") as HTMLCanvasElement;
+    if (!canvas) return;
+
+    ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Reset canvas dimensions and styles
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 14;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0070d1"; // PlayStation Blue
+
+    // Draw reference stroke guide paths onto SVG
+    const svgPath = document.getElementById("tracing-guide-path");
+    const activePath = document.getElementById("tracing-active-path");
+    const markers = document.getElementById("tracing-markers");
+
+    // Flatten strokes coordinate reference list to draw guide indicators
+    let svgString = "";
+    if (markers) markers.innerHTML = "";
+    
+    pathPoints = [];
+    letter.strokes.forEach((stroke: any) => {
+      if (stroke.length === 0) return;
+      svgString += `M ${stroke[0].x * 2.56} ${stroke[0].y * 2.56} `;
+      
+      stroke.forEach((pt: any, i: number) => {
+        pathPoints.push({ x: pt.x * 2.56, y: pt.y * 2.56, strokeIdx: pathPoints.length });
+        if (i > 0) {
+          svgString += `L ${pt.x * 2.56} ${pt.y * 2.56} `;
+        }
+      });
+    });
+
+    if (svgPath) svgPath.setAttribute("d", svgString);
+    if (activePath) activePath.setAttribute("d", svgString);
+
+    // Draw green starting dot indicator and red ending indicator
+    if (markers && pathPoints.length > 0) {
+      const startPt = pathPoints[0];
+      const startDot = document.createElement("div");
+      startDot.className = "absolute w-4 h-4 rounded-full bg-green-500 border border-white shadow animate-pulse";
+      startDot.style.left = `${(startPt.x / 256) * 100}%`;
+      startDot.style.top = `${(startPt.y / 256) * 100}%`;
+      startDot.style.transform = "translate(-50%, -50%)";
+      markers.appendChild(startDot);
+    }
+
+    completedStrokePoints = [];
+    isDrawing = false;
+
+    // Remove old events
+    canvas.replaceWith(canvas.cloneNode(true));
+    canvas = document.getElementById("tracing-canvas") as HTMLCanvasElement;
+    ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.lineWidth = 14;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0070d1";
+
+    const getPos = (e: MouseEvent | TouchEvent) => {
+      const rect = canvas!.getBoundingClientRect();
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      return {
+        x: ((clientX - rect.left) / rect.width) * canvas!.width,
+        y: ((clientY - rect.top) / rect.height) * canvas!.height
+      };
+    };
+
+    const drawStart = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      isDrawing = true;
+      const pos = getPos(e);
+      ctx!.beginPath();
+      ctx!.moveTo(pos.x, pos.y);
+      checkPointDistance(pos.x, pos.y);
+    };
+
+    const drawMove = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      if (!isDrawing) return;
+      const pos = getPos(e);
+      ctx!.lineTo(pos.x, pos.y);
+      ctx!.stroke();
+      checkPointDistance(pos.x, pos.y);
+    };
+
+    const drawEnd = () => {
+      isDrawing = false;
+    };
+
+    canvas.addEventListener("mousedown", drawStart);
+    canvas.addEventListener("mousemove", drawMove);
+    canvas.addEventListener("mouseup", drawEnd);
+    canvas.addEventListener("mouseleave", drawEnd);
+
+    canvas.addEventListener("touchstart", drawStart);
+    canvas.addEventListener("touchmove", drawMove);
+    canvas.addEventListener("touchend", drawEnd);
+  }
+
+  function checkPointDistance(x: number, y: number) {
+    pathPoints.forEach((refPt) => {
+      if (completedStrokePoints.includes(refPt.strokeIdx)) return;
+      
+      // Math distance
+      const dist = Math.hypot(x - refPt.x, y - refPt.y);
+      if (dist < 22) { // 22px tolerance circle boundary
+        completedStrokePoints.push(refPt.strokeIdx);
+        // play tiny quiet click tone on node connection
+        playTone(700, 'sine', 0.05);
+      }
+    });
+
+    // Check if the tracing is completed (e.g. user covered at least 80% of coordinates)
+    const ratio = completedStrokePoints.length / pathPoints.length;
+    if (ratio >= 0.85 && !tracingCompleted) {
+      tracingCompleted = true;
+      const submitBtn = document.getElementById("lesson-submit-btn") as HTMLButtonElement;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "COMPLETED! CLICK CHECK";
+      }
+      // Draw flashing gold outline on SVG guide
+      const guide = document.getElementById("tracing-active-path");
+      if (guide) {
+        guide.setAttribute("stroke", "#ffce21");
+      }
+      playSound('correct');
+    }
+  }
+
+  // Answer validation engine
+  function checkAnswer() {
+    const challenge = currentChallenges[currentChallengeIndex];
+    const submitBtn = document.getElementById("lesson-submit-btn") as HTMLButtonElement;
+    if (!challenge || !submitBtn) return;
+
+    if (submitBtn.textContent === "CONTINUE") {
+      // Advance to next challenge
+      currentChallengeIndex++;
+      loadChallenge();
+      return;
+    }
+
+    let isCorrect = false;
+
+    if (challenge.type === 'writing') {
+      isCorrect = tracingCompleted;
+      state.lettersTracedToday++;
+    } else {
+      isCorrect = selectedOptionText === challenge.answer;
+    }
+
+    if (isCorrect) {
+      playSound('correct');
+      activeXpGained += 10;
+      submitBtn.textContent = "CONTINUE";
+      submitBtn.className = "px-8 py-3 rounded-full bg-green-600 hover:bg-green-700 text-white font-bold text-sm tracking-wider shadow-lg transition-colors cursor-pointer";
+      
+      // Highlight option card
+      const activeBtns = document.querySelectorAll("#lesson-options-container button");
+      activeBtns.forEach(btn => {
+        if (btn.textContent === challenge.answer) {
+          btn.className = "w-full p-4 bg-green-600 text-white border-2 border-green-700 rounded-md font-bold text-sm tracking-wide text-center";
+        }
+      });
+    } else {
+      playSound('error');
+      activeMistakes++;
+      // Show correct highlight in options
+      const activeBtns = document.querySelectorAll("#lesson-options-container button");
+      activeBtns.forEach(btn => {
+        if (btn.textContent === challenge.answer) {
+          btn.className = "w-full p-4 bg-green-600 text-white border-2 border-green-700 rounded-md font-bold text-sm tracking-wide text-center";
+        } else if (btn.textContent === selectedOptionText) {
+          btn.className = "w-full p-4 bg-red-600 text-white border-2 border-red-700 rounded-md font-bold text-sm tracking-wide text-center";
+        }
+      });
+
+      submitBtn.textContent = "CONTINUE";
+      submitBtn.className = "px-8 py-3 rounded-full bg-green-600 hover:bg-green-700 text-white font-bold text-sm tracking-wider shadow-lg transition-colors cursor-pointer";
+    }
+
+    // Refresh XP headers
+    const xpGained = document.getElementById("lesson-xp-gained");
+    const mistakesCount = document.getElementById("lesson-mistakes-count");
+    if (xpGained) xpGained.textContent = activeXpGained.toString();
+    if (mistakesCount) mistakesCount.textContent = activeMistakes.toString();
+  }
+
+  // Finish session calculations (Gold/Silver medals, coins payouts)
+  function finishLesson() {
+    document.getElementById("lesson-viewport")?.classList.add("hidden");
+    const screen = document.getElementById("lesson-summary-screen");
+    if (!screen) return;
+
+    screen.classList.remove("hidden");
+
+    // Hide level panel by default
+    document.getElementById("summary-level-panel")?.classList.add("hidden");
+
+    // Compute metrics
+    const totalQ = currentChallenges.length;
+    const correctCount = Math.max(0, totalQ - activeMistakes);
+    const accuracy = Math.round((correctCount / totalQ) * 100);
+
+    // Medal checks
+    let medalEmoji = "🏆";
+    let medalTitle = "Gold Medal";
+    let headline = "Perfect Study!";
+    let tagline = "You completed the lesson with zero mistakes.";
+    let coinsPaid = 15;
+    let xpBonus = 30;
+
+    if (activeMistakes === 0) {
+      medalEmoji = "🥇";
+      medalTitle = "Gold Medal";
+      headline = "Perfect Flawless Study!";
+      tagline = "You completed the lesson with absolute perfection.";
+      coinsPaid = 20;
+      xpBonus = 40;
+    } else if (activeMistakes === 1) {
+      medalEmoji = "🥈";
+      medalTitle = "Silver Medal";
+      headline = "Excellent Study!";
+      tagline = "Only a single slip! Beautiful work.";
+      coinsPaid = 15;
+      xpBonus = 25;
+    } else if (activeMistakes === 2) {
+      medalEmoji = "🥉";
+      medalTitle = "Bronze Medal";
+      headline = "Good Effort!";
+      tagline = "You completed the study with minor mistakes.";
+      coinsPaid = 10;
+      xpBonus = 15;
+    } else if (activeMistakes === 3) {
+      medalEmoji = "🥉";
+      medalTitle = "Copper Medal";
+      headline = "Study Passed!";
+      tagline = "Keep practicing. You're building vocabulary.";
+      coinsPaid = 5;
+      xpBonus = 10;
+    } else {
+      medalEmoji = "🏅";
+      medalTitle = "Participation Medal";
+      headline = "Keep Trying!";
+      tagline = "Review your cards. Repetition is key to fluency.";
+      coinsPaid = 2;
+      xpBonus = 5;
+    }
+
+    // Set UI elements
+    const iconEl = document.getElementById("summary-medal-icon");
+    const headlineEl = document.getElementById("summary-headline");
+    const taglineEl = document.getElementById("summary-tagline");
+    const accuracyEl = document.getElementById("summary-accuracy");
+    const mistakesEl = document.getElementById("summary-mistakes");
+    const xpEl = document.getElementById("summary-xp");
+    const coinsEl = document.getElementById("summary-coins");
+    const regionNameEl = document.getElementById("summary-region-name");
+
+    if (iconEl) iconEl.textContent = medalEmoji;
+    if (headlineEl) headlineEl.textContent = headline;
+    if (taglineEl) taglineEl.textContent = tagline;
+    if (accuracyEl) accuracyEl.textContent = `${accuracy}%`;
+    if (mistakesEl) mistakesEl.textContent = activeMistakes.toString();
+    if (xpEl) xpEl.textContent = `+${activeXpGained + xpBonus} XP`;
+    if (coinsEl) coinsEl.textContent = `+${coinsPaid}`;
+
+    const region = WORLD_REGIONS.find(r => r.id === activeRegionId);
+    if (regionNameEl && region) regionNameEl.textContent = region.name;
+
+    // Apply currency and XP changes
+    awardXp(activeXpGained + xpBonus);
+    state.coins += coinsPaid;
+    state.coinsEarnedToday += coinsPaid;
+
+    // Record study log date
+    const today = new Date().toDateString();
+    if (state.lastStudyDate !== today) {
+      state.streak++;
+      if (state.streak > state.longestStreak) {
+        state.longestStreak = state.streak;
+      }
+      state.lastStudyDate = today;
+    }
+
+    // Log the earned medal details
+    const newMedal: MedalEarned = {
+      lessonName: `${region?.name || "Gurmukhi"} Lesson ${activeLessonIndex + 1}`,
+      mistakes: activeMistakes,
+      xp: activeXpGained + xpBonus,
+      accuracy,
+      date: new Date().toISOString()
+    };
+    state.earnedMedals.push(newMedal);
+
+    // Save lesson completion index
+    const prevCompleted = state.completedLessons[activeRegionId] || 0;
+    if (activeLessonIndex >= prevCompleted) {
+      state.completedLessons[activeRegionId] = activeLessonIndex + 1;
+    }
+
+    // Reward unlocks!
+    const rewardBox = document.getElementById("summary-reward-box");
+    const rewardIcon = document.getElementById("summary-reward-icon");
+    const rewardTitle = document.getElementById("summary-reward-title");
+    const rewardDesc = document.getElementById("summary-reward-desc");
+
+    if (rewardBox && rewardIcon && rewardTitle && rewardDesc && region) {
+      rewardBox.classList.add("hidden");
+      
+      const regionClearedCount = state.completedLessons[activeRegionId] || 0;
+      if (regionClearedCount >= region.lessonsCount) {
+        let unlockedSomething = false;
+        
+        // 1. Unlock next country region
+        const nextRegionIdx = WORLD_REGIONS.findIndex(r => r.id === activeRegionId) + 1;
+        if (nextRegionIdx < WORLD_REGIONS.length) {
+          const nextReg = WORLD_REGIONS[nextRegionIdx];
+          if (!state.unlockedRegions.includes(nextReg.id)) {
+            state.unlockedRegions.push(nextReg.id);
+            unlockedSomething = true;
+          }
+        }
+
+        // 2. Unlock Regional Pendant
+        if (!state.unlockedPendants.includes(activeRegionId)) {
+          state.unlockedPendants.push(activeRegionId);
+          rewardIcon.textContent = region.rewards.pendant.icon;
+          rewardTitle.textContent = region.rewards.pendant.name;
+          rewardDesc.textContent = `${region.rewards.pendant.rarity} Pendant Relic: ${region.rewards.pendant.desc}`;
+          rewardBox.classList.remove("hidden");
+          unlockedSomething = true;
+        }
+
+        // 3. Unlock Regional Trophy
+        if (!state.earnedTrophies.includes(activeRegionId)) {
+          state.earnedTrophies.push(activeRegionId);
+          unlockedSomething = true;
+        }
+
+        // 4. Core trophies unlocks
+        if (activeRegionId === "india" && !state.earnedTrophies.includes("alphabet")) {
+          state.earnedTrophies.push("alphabet");
+        }
+        if (activeRegionId === "canada" && !state.earnedTrophies.includes("numbers")) {
+          state.earnedTrophies.push("numbers");
+        }
+        if (activeRegionId === "uk" && !state.earnedTrophies.includes("reading")) {
+          state.earnedTrophies.push("reading");
+        }
+        if (activeRegionId === "australia" && !state.earnedTrophies.includes("listening")) {
+          state.earnedTrophies.push("listening");
+        }
+      }
+    }
+
+    // Save modifications
+    saveProgress();
+    playSound('victory');
+
+    // Confetti burst on flawless completion
+    if (activeMistakes === 0) {
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
+    }
+  }
+
+  // Mount Event Listeners once loaded on client
+  window.addEventListener("DOMContentLoaded", () => {
+    loadProgress();
+    verifyStreak();
+    saveProgress();
+    showScreen("MAP");
+
+    // NAV LINK BUTTONS CLICKS
+    document.querySelectorAll("[data-nav-target]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const target = btn.getAttribute("data-nav-target") || "MAP";
+        showScreen(target);
+      });
+    });
+
+    // Logo click redirect
+    document.getElementById("nav-logo-btn")?.addEventListener("click", () => {
+      showScreen("MAP");
+    });
+
+    // Mute Button toggle
+    document.getElementById("nav-mute-btn")?.addEventListener("click", () => {
+      state.mute = !state.mute;
+      saveProgress();
+    });
+
+    // MAP HOVERS & CLICKS ON COUNTRY NODES
+    document.querySelectorAll(".node-button").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const parent = (e.currentTarget as HTMLElement).parentElement;
+        const regionId = parent?.getAttribute("data-region") || "";
+        showMapNodeDetail(regionId);
+      });
+    });
+
+    // Map Detail chapter trigger CTA
+    document.getElementById("detail-cta-btn")?.addEventListener("click", () => {
+      const region = WORLD_REGIONS.find(r => r.id === activeRegionId);
+      if (region) {
+        const cleared = state.completedLessons[activeRegionId] || 0;
+        const lessonIdx = Math.min(region.lessonsCount - 1, cleared);
+        startLesson(activeRegionId, lessonIdx);
+      }
+    });
+
+    // EXIT LESSON DIALOG
+    document.getElementById("lesson-exit-btn")?.addEventListener("click", () => {
+      if (confirm("Are you sure you want to exit? You will lose current lesson progress.")) {
+        playSound('click');
+        showScreen("MAP");
+      }
+    });
+
+    // LESSON SUBMIT CHECK
+    document.getElementById("lesson-submit-btn")?.addEventListener("click", () => {
+      checkAnswer();
+    });
+
+    // CLEAR TRACING CANVAS
+    document.getElementById("clear-trace-btn")?.addEventListener("click", () => {
+      const challenge = currentChallenges[currentChallengeIndex];
+      if (challenge && challenge.targetLetter) {
+        initTracingCanvas(challenge.targetLetter);
+      }
+    });
+
+    // SUMMARY CONTINUE BTN
+    document.getElementById("summary-continue-btn")?.addEventListener("click", () => {
+      playSound('click');
+      showScreen("MAP");
+    });
+
+    // INDEX SELECTOR PILLS
+    document.getElementById("learn-tab-letters")?.addEventListener("click", () => {
+      learnSubTab = "letters";
+      playSound('click');
+      updateLearnUI();
+    });
+    document.getElementById("learn-tab-numbers")?.addEventListener("click", () => {
+      learnSubTab = "numbers";
+      playSound('click');
+      updateLearnUI();
+    });
+
+    // MUSEUM TAB SELECTORS
+    document.getElementById("museum-tab-trophies")?.addEventListener("click", () => {
+      museumSubTab = "trophies";
+      playSound('click');
+      updateMuseumUI();
+    });
+    document.getElementById("museum-tab-medals")?.addEventListener("click", () => {
+      museumSubTab = "medals";
+      playSound('click');
+      updateMuseumUI();
+    });
+    document.getElementById("museum-tab-pendants")?.addEventListener("click", () => {
+      museumSubTab = "pendants";
+      playSound('click');
+      updateMuseumUI();
+    });
+
+    // TROPHY SLOTS DETAILS INSPECTOR
+    document.querySelectorAll(".trophy-slot").forEach(slot => {
+      slot.addEventListener("click", () => {
+        const trophyId = slot.getAttribute("data-trophy-id") || "";
+        showTrophyInspection(trophyId);
+      });
+    });
+
+    // TROPHY CLOSE INSPECTION
+    const closeInspect = () => {
+      const modal = document.getElementById("trophy-inspect-modal");
+      if (modal) modal.classList.add("opacity-0", "pointer-events-none");
+      playSound('click');
+    };
+    document.getElementById("inspect-close-btn")?.addEventListener("click", closeInspect);
+    document.getElementById("inspect-dismiss-btn")?.addEventListener("click", closeInspect);
+
+    // 3D Trophy spin drag simulation events
+    const obj3d = document.getElementById("inspect-3d-object");
+    const wrap3d = document.getElementById("inspect-3d-model-wrapper");
+    if (obj3d && wrap3d) {
+      wrap3d.addEventListener("mousedown", (e) => {
+        isDraggingTrophy = true;
+        startX = (e as MouseEvent).clientX;
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (!isDraggingTrophy) return;
+        const deltaX = e.clientX - startX;
+        currentRotation += deltaX * 0.75;
+        obj3d.style.transform = `rotateY(${currentRotation}deg)`;
+        startX = e.clientX;
+      });
+
+      window.addEventListener("mouseup", () => {
+        isDraggingTrophy = false;
+      });
+    }
+
+    // PENDANT HOOK CLICK HANDLER
+    document.querySelectorAll(".pendant-hook").forEach(hook => {
+      hook.addEventListener("click", () => {
+        const pId = hook.getAttribute("data-pendant-id") || "";
+        inspectPendant(pId);
+      });
+    });
+
+    // CULTURE SLIDE DETAIL READER
+    document.querySelectorAll("[data-article-id]").forEach(card => {
+      card.querySelector(".claim-culture-btn")?.addEventListener("click", (e) => {
+        e.stopPropagation(); // prevent card click bubble
+        const aId = parseInt(card.getAttribute("data-article-id") || "0");
+        readArticle(aId);
+      });
+      card.addEventListener("click", () => {
+        const aId = parseInt(card.getAttribute("data-article-id") || "0");
+        readArticle(aId);
+      });
+    });
+
+    document.getElementById("culture-close-btn")?.addEventListener("click", () => {
+      const modal = document.getElementById("culture-article-modal");
+      if (modal) modal.classList.add("opacity-0", "pointer-events-none");
+      playSound('click');
+    });
+
+    document.getElementById("modal-article-claim-btn")?.addEventListener("click", () => {
+      claimArticleXp();
+    });
+
+    // Reset progress helper for debugging if required (uncomment if need manual reset)
+    // window.resetProgress = () => { localStorage.clear(); location.reload(); };
+  });
+</script>

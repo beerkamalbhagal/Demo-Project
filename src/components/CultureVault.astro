@@ -1,0 +1,129 @@
+---
+// src/components/CultureVault.astro
+---
+<div class="w-full bg-canvas-dark text-on-dark py-12 px-4 md:px-8 border-b border-hairline-dark select-none" id="culture-screen-container">
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div>
+        <p class="caption-sm text-primary uppercase font-bold tracking-widest font-body">Heritage Archive</p>
+        <h1 class="display-lg text-on-dark mt-1">Cultural Vault</h1>
+        <p class="body-sm text-on-dark-mute mt-2">
+          Explore the rich history, geography, food, and music of the Land of Five Rivers. Unlock reading logs to earn bonus XP.
+        </p>
+      </div>
+      
+      <!-- Stats read tracker -->
+      <div class="bg-surface-dark-card border border-hairline-dark px-4 py-2 rounded-md text-xs font-semibold text-primary">
+        📖 Read logs: <span id="culture-read-count" class="text-white font-bold">0 / 5</span>
+      </div>
+    </div>
+
+    <!-- Article Carousel / Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="culture-cards-container">
+      
+      <!-- Card 1: Origins of Gurmukhi -->
+      <div class="bg-surface-dark-card border border-hairline-dark rounded-md p-6 flex flex-col justify-between group cursor-pointer hover:border-primary duration-300" data-article-id="0">
+        <div>
+          <span class="text-3xl">🪶</span>
+          <h3 class="heading-lg text-on-dark mt-4 group-hover:text-primary transition-colors">Origins of Gurmukhi</h3>
+          <p class="caption-md text-on-dark-mute mt-2">
+            Learn how Guru Angad Dev Ji standardized the script in the 16th century to record the teachings of Guru Nanak and the Punjabi language.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-hairline-dark flex justify-between items-center text-xs">
+          <span class="text-yellow-400 font-bold">✨ +10 XP Reward</span>
+          <button class="px-3 py-1 bg-primary hover:bg-primary-pressed rounded-full font-bold text-[10px] text-white claim-culture-btn">Read Vault</button>
+        </div>
+      </div>
+
+      <!-- Card 2: Land of Five Rivers -->
+      <div class="bg-surface-dark-card border border-hairline-dark rounded-md p-6 flex flex-col justify-between group cursor-pointer hover:border-primary duration-300" data-article-id="1">
+        <div>
+          <span class="text-3xl">🌊</span>
+          <h3 class="heading-lg text-on-dark mt-4 group-hover:text-primary transition-colors">The Five Rivers</h3>
+          <p class="caption-md text-on-dark-mute mt-2">
+            The name Punjab comes from Persian words 'Panj' (five) and 'Ab' (water), referring to the Jhelum, Chenab, Ravi, Beas, and Sutlej rivers.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-hairline-dark flex justify-between items-center text-xs">
+          <span class="text-yellow-400 font-bold">✨ +10 XP Reward</span>
+          <button class="px-3 py-1 bg-primary hover:bg-primary-pressed rounded-full font-bold text-[10px] text-white claim-culture-btn">Read Vault</button>
+        </div>
+      </div>
+
+      <!-- Card 3: Folk Bhangra Dance -->
+      <div class="bg-surface-dark-card border border-hairline-dark rounded-md p-6 flex flex-col justify-between group cursor-pointer hover:border-primary duration-300" data-article-id="2">
+        <div>
+          <span class="text-3xl">🥁</span>
+          <h3 class="heading-lg text-on-dark mt-4 group-hover:text-primary transition-colors">Bhangra & Folk Beat</h3>
+          <p class="caption-md text-on-dark-mute mt-2">
+            Originating as a high-energy dance to celebrate the wheat harvest (Vaisakhi), Bhangra features energetic jumps and powerful beats of the Dhol.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-hairline-dark flex justify-between items-center text-xs">
+          <span class="text-yellow-400 font-bold">✨ +10 XP Reward</span>
+          <button class="px-3 py-1 bg-primary hover:bg-primary-pressed rounded-full font-bold text-[10px] text-white claim-culture-btn">Read Vault</button>
+        </div>
+      </div>
+
+      <!-- Card 4: Punjabi Kitchen -->
+      <div class="bg-surface-dark-card border border-hairline-dark rounded-md p-6 flex flex-col justify-between group cursor-pointer hover:border-primary duration-300" data-article-id="3">
+        <div>
+          <span class="text-3xl">🍲</span>
+          <h3 class="heading-lg text-on-dark mt-4 group-hover:text-primary transition-colors">The Punjabi Cuisine</h3>
+          <p class="caption-md text-on-dark-mute mt-2">
+            Famed for rich butter-topped rotis (flatbreads), Sarson ka Saag (mustard greens), spiced clay-oven tandoori grills, and cooling tall glasses of sweet Lassi.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-hairline-dark flex justify-between items-center text-xs">
+          <span class="text-yellow-400 font-bold">✨ +10 XP Reward</span>
+          <button class="px-3 py-1 bg-primary hover:bg-primary-pressed rounded-full font-bold text-[10px] text-white claim-culture-btn">Read Vault</button>
+        </div>
+      </div>
+
+      <!-- Card 5: Diaspora Journeys -->
+      <div class="bg-surface-dark-card border border-hairline-dark rounded-md p-6 flex flex-col justify-between group cursor-pointer hover:border-primary duration-300" data-article-id="4">
+        <div>
+          <span class="text-3xl">✈️</span>
+          <h3 class="heading-lg text-on-dark mt-4 group-hover:text-primary transition-colors">Global Diaspora</h3>
+          <p class="caption-md text-on-dark-mute mt-2">
+            Discover how Punjabi immigrants created thriving centers in Canada (Surrey/Brampton), the UK (Southall), the US (Yuba City), and Australia.
+          </p>
+        </div>
+        <div class="mt-6 pt-4 border-t border-hairline-dark flex justify-between items-center text-xs">
+          <span class="text-yellow-400 font-bold">✨ +10 XP Reward</span>
+          <button class="px-3 py-1 bg-primary hover:bg-primary-pressed rounded-full font-bold text-[10px] text-white claim-culture-btn">Read Vault</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Interactive Slide Overlay Modal for reading details -->
+  <div id="culture-article-modal" class="fixed inset-0 bg-canvas-dark/95 z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="max-w-2xl w-full bg-surface-dark-card border border-hairline-dark p-8 rounded-md shadow-2xl relative">
+      <button id="culture-close-btn" class="absolute top-4 right-4 text-mute-dark hover:text-white text-lg">✕</button>
+      
+      <!-- Article Content -->
+      <span class="text-4xl" id="modal-article-emoji">🪶</span>
+      <h2 class="display-md text-on-dark mt-3" id="modal-article-title">Origins of Gurmukhi</h2>
+      <span class="caption-sm text-primary font-bold uppercase tracking-widest mt-1 block">Heritage Reading Journal</span>
+      
+      <div class="border-t border-hairline-dark my-4"></div>
+      
+      <div id="modal-article-body" class="body-sm text-on-dark-mute leading-relaxed space-y-4 max-h-96 overflow-y-auto pr-2">
+        <!-- Detailed content gets injected -->
+      </div>
+      
+      <div class="border-t border-hairline-dark my-6"></div>
+      
+      <div class="flex justify-between items-center">
+        <span class="caption-md text-yellow-400 font-semibold" id="modal-article-xp-tag">🎁 Earns +10 XP points</span>
+        <button id="modal-article-claim-btn" class="px-6 py-2 rounded-full bg-primary hover:bg-primary-pressed text-white font-bold text-xs shadow-lg tracking-wider">
+          MARK AS READ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
